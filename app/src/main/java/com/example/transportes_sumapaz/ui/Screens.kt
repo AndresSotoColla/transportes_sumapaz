@@ -99,10 +99,7 @@ fun TransportesSumapazApp() {
                 Toast.makeText(context, "Use los botones de la interfaz para navegar", Toast.LENGTH_SHORT).show()
             }
             Screen.LEADER_LOGIN -> { currentScreen = Screen.WELCOME }
-            Screen.LEADER_CHANGE_PASSWORD -> {
-                TransportesRepository.logout()
-                currentScreen = Screen.WELCOME
-            }
+            Screen.LEADER_CHANGE_PASSWORD -> { currentScreen = Screen.LEADER_DASHBOARD }
             Screen.LEADER_DASHBOARD -> {
                 TransportesRepository.logout()
                 currentScreen = Screen.WELCOME
@@ -128,11 +125,7 @@ fun TransportesSumapazApp() {
                 Screen.LEADER_LOGIN -> LeaderLoginScreen(
                     onBack = { currentScreen = Screen.WELCOME },
                     onLoginSuccess = { result ->
-                        if (result == LoginResult.MUST_CHANGE_PASSWORD) {
-                            currentScreen = Screen.LEADER_CHANGE_PASSWORD
-                        } else {
-                            currentScreen = Screen.LEADER_DASHBOARD
-                        }
+                        currentScreen = Screen.LEADER_DASHBOARD
                     }
                 )
                 Screen.LEADER_CHANGE_PASSWORD -> LeaderChangePasswordScreen(
@@ -141,13 +134,13 @@ fun TransportesSumapazApp() {
                         currentScreen = Screen.LEADER_DASHBOARD
                     },
                     onBack = {
-                        TransportesRepository.logout()
-                        currentScreen = Screen.WELCOME
+                        currentScreen = Screen.LEADER_DASHBOARD
                     }
                 )
                 Screen.LEADER_DASHBOARD -> LeaderDashboardScreen(
                     onRegisterTrip = { currentScreen = Screen.LEADER_REGISTER_TRIP },
                     onViewCalendar = { currentScreen = Screen.LEADER_CALENDAR },
+                    onChangePassword = { currentScreen = Screen.LEADER_CHANGE_PASSWORD },
                     onLogout = {
                         TransportesRepository.logout()
                         currentScreen = Screen.WELCOME
@@ -355,14 +348,7 @@ fun WelcomeScreen(
                 textAlign = TextAlign.Center
             )
 
-            Text(
-                text = "Vínculo y Control de Rutas Municipales",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = Color.Gray,
-                    fontWeight = FontWeight.Medium
-                ),
-                textAlign = TextAlign.Center
-            )
+
 
             Spacer(modifier = Modifier.height(56.dp))
 
@@ -754,6 +740,7 @@ fun LeaderChangePasswordScreen(
 fun LeaderDashboardScreen(
     onRegisterTrip: () -> Unit,
     onViewCalendar: () -> Unit,
+    onChangePassword: () -> Unit,
     onLogout: () -> Unit
 ) {
     val leader = TransportesRepository.loggedLeader.value
@@ -837,7 +824,8 @@ fun LeaderDashboardScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onViewCalendar() },
+                .clickable { onViewCalendar() }
+                .padding(bottom = 16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
@@ -862,6 +850,40 @@ fun LeaderDashboardScreen(
                 )
                 Text(
                     text = "Consulte el calendario de rutas programadas y su cumplimiento.",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+                )
+            }
+        }
+
+        // Tarjeta Cambiar Contraseña (Clara)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onChangePassword() },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Cambiar contraseña",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = Color.Black
+                )
+                Text(
+                    text = "Actualice las credenciales de seguridad de su cuenta.",
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
                 )
             }
@@ -921,7 +943,7 @@ fun LeaderRegisterTripScreen(
             color = PrimaryBlue
         )
         Text(
-            text = "Asigne una fecha, sede y pasajeros para el viaje municipal",
+            text = "Asigne una fecha, sede y pasajeros para el viaje",
             style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
         )
 
@@ -2512,12 +2534,18 @@ fun UserTripDetailsScreen(
                                             }
 
                                             if (isChecked) {
-                                                IconButton(
-                                                    onClick = {
+                                                Card(
+                                                    colors = CardDefaults.cardColors(containerColor = StatusGreen.copy(alpha = 0.1f)),
+                                                    modifier = Modifier.clickable {
                                                         closedConfirmedList.remove(passenger.docNumber)
                                                     }
                                                 ) {
-                                                    Icon(Icons.Default.CheckCircle, contentDescription = "Remover", tint = StatusGreen)
+                                                    Text(
+                                                        text = "Confirmado",
+                                                        color = StatusGreen,
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    )
                                                 }
                                             } else {
                                                 Button(
@@ -2564,8 +2592,6 @@ fun UserTripDetailsScreen(
                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
                                 Text("Aceptar", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                             }
                         }
@@ -2609,8 +2635,6 @@ fun UserTripDetailsScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = StatusYellow)
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Aceptar",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
