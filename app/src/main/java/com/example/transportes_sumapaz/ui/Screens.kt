@@ -679,19 +679,27 @@ fun LeaderLoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+        var isLoading by remember { mutableStateOf(false) }
+
         Button(
             onClick = {
                 if (username.isBlank() || password.isBlank()) {
                     errorMessage = "Por favor complete todos los campos"
                     return@Button
                 }
-                val result = TransportesRepository.loginLeader(username, password)
-                if (result == LoginResult.USER_NOT_FOUND) {
-                    errorMessage = "Usuario no registrado"
-                } else if (result == LoginResult.WRONG_PASSWORD) {
-                    errorMessage = "Contraseña incorrecta"
-                } else {
-                    onLoginSuccess(result)
+                isLoading = true
+                errorMessage = null
+                coroutineScope.launch {
+                    val result = TransportesRepository.loginLeaderRemote(username, password)
+                    isLoading = false
+                    if (result == LoginResult.USER_NOT_FOUND) {
+                        errorMessage = "Usuario no registrado"
+                    } else if (result == LoginResult.WRONG_PASSWORD) {
+                        errorMessage = "Contraseña incorrecta"
+                    } else {
+                        onLoginSuccess(result)
+                    }
                 }
             },
             modifier = Modifier

@@ -203,7 +203,53 @@ object TransportesRepository {
         trips.add(tripPast)
     }
 
-    // --- Autenticación Meta Líder ---
+    // --- Autenticación Meta Líder (API Real) ---
+    private val api: com.example.transportes_sumapaz.data.remote.TransporteApi by lazy {
+        val logging = okhttp3.logging.HttpLoggingInterceptor().apply { level = okhttp3.logging.HttpLoggingInterceptor.Level.BODY }
+        val client = okhttp3.OkHttpClient.Builder().addInterceptor(logging).build()
+        retrofit2.Retrofit.Builder()
+            .baseUrl("https://productorescampesinos.com/")
+            .client(client)
+            .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+            .build()
+            .create(com.example.transportes_sumapaz.data.remote.TransporteApi::class.java)
+    }
+
+    suspend fun loginLeaderRemote(username: String, passwordPlain: String): LoginResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val response = api.login(com.example.transportes_sumapaz.data.remote.model.LoginRequest(username, passwordPlain))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && body.success == true && body.lider != null) {
+                    val lider = body.lider
+                    val account = LeaderAccount(
+                        username = lider.usuario,
+                        name = lider.nombre,
+                        passwordHash = "", // Ya no necesitamos almacenar el hash en memoria
+                        mustChangePassword = lider.debe_cambiar_contrasena == 1,
+                        level = lider.nivel
+                    )
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        loggedLeader.value = account
+                    }
+                    if (account.mustChangePassword) return@withContext LoginResult.MUST_CHANGE_PASSWORD
+                    return@withContext LoginResult.SUCCESS
+                } else {
+                    return@withContext LoginResult.USER_NOT_FOUND
+                }
+            } else {
+                if (response.code() == 401) {
+                    return@withContext LoginResult.WRONG_PASSWORD
+                }
+                return@withContext LoginResult.USER_NOT_FOUND
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext LoginResult.USER_NOT_FOUND
+        }
+    }
+
+    // --- Autenticación Meta Líder (Mock Anterior) ---
     fun loginLeader(username: String, passwordPlain: String): LoginResult {
         val account = leaders[username] ?: return LoginResult.USER_NOT_FOUND
         if (account.passwordHash != passwordPlain) {
