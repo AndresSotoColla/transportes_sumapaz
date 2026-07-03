@@ -1,4 +1,4 @@
-package com.example.transportes_sumapaz.ui
+﻿package com.example.transportes_sumapaz.ui
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -44,12 +44,12 @@ import java.util.GregorianCalendar
 // Estados de pantalla de la aplicaciÃ³n
 enum class Screen {
     WELCOME,
-    LEADER_LOGIN,
-    LEADER_CHANGE_PASSWORD,
-    LEADER_DASHBOARD,
-    LEADER_REGISTER_TRIP,
-    LEADER_CALENDAR,
-    LEADER_CREATE_LEADER,
+    Líder_LOGIN,
+    Líder_CHANGE_PASSWORD,
+    Líder_DASHBOARD,
+    Líder_REGISTER_TRIP,
+    Líder_CALENDAR,
+    Líder_CREATE_Líder,
     USER_DASHBOARD,
     USER_TRIP_DETAILS,
     USER_REGISTER_OCCASIONAL,
@@ -84,7 +84,7 @@ fun getTextFieldColors() = OutlinedTextFieldDefaults.colors(
     disabledLabelColor = Color.Black.copy(alpha = 0.7f),
     focusedBorderColor = PrimaryBlue,
     unfocusedBorderColor = Color.LightGray,
-    disabledBorderColor = Color.LightGray,
+    disabLíderColor = Color.LightGray,
     focusedLeadingIconColor = PrimaryBlue,
     unfocusedLeadingIconColor = Color.Gray,
     disabledLeadingIconColor = Color.Gray
@@ -103,20 +103,21 @@ fun TransportesSumapazApp() {
             Screen.WELCOME -> {
                 Toast.makeText(context, "Use los botones de la interfaz para navegar", Toast.LENGTH_SHORT).show()
             }
-            Screen.LEADER_LOGIN -> { currentScreen = Screen.WELCOME }
-            Screen.LEADER_CHANGE_PASSWORD -> { currentScreen = Screen.LEADER_DASHBOARD }
-            Screen.LEADER_DASHBOARD -> {
+            Screen.Líder_LOGIN -> { currentScreen = Screen.WELCOME }
+            Screen.Líder_CHANGE_PASSWORD -> { currentScreen = Screen.Líder_DASHBOARD }
+            Screen.Líder_DASHBOARD -> {
                 TransportesRepository.logout()
                 currentScreen = Screen.WELCOME
             }
-            Screen.LEADER_REGISTER_TRIP -> { currentScreen = Screen.LEADER_DASHBOARD }
-            Screen.LEADER_CALENDAR -> { currentScreen = Screen.LEADER_DASHBOARD }
-            Screen.LEADER_CREATE_LEADER -> { currentScreen = Screen.LEADER_DASHBOARD }
+            Screen.Líder_REGISTER_TRIP -> { currentScreen = Screen.Líder_DASHBOARD }
+            Screen.Líder_CALENDAR -> { currentScreen = Screen.Líder_DASHBOARD }
+            Screen.Líder_CREATE_Líder -> { currentScreen = Screen.Líder_DASHBOARD }
             Screen.USER_DASHBOARD -> { currentScreen = Screen.WELCOME }
             Screen.USER_TRIP_DETAILS -> { currentScreen = Screen.USER_DASHBOARD }
             Screen.USER_REGISTER_OCCASIONAL -> { currentScreen = Screen.USER_DASHBOARD }
             Screen.REPORTS_LOGIN -> { currentScreen = Screen.WELCOME }
             Screen.REPORTS_DASHBOARD -> { currentScreen = Screen.WELCOME }
+            Screen.VIAJES_API -> { currentScreen = Screen.WELCOME }
         }
     }
 
@@ -127,44 +128,44 @@ fun TransportesSumapazApp() {
         Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
             when (screen) {
                 Screen.WELCOME -> WelcomeScreen(
-                    onLeaderClick = { currentScreen = Screen.LEADER_LOGIN },
+                    onLíderClick = { currentScreen = Screen.Líder_LOGIN },
                     onUserClick = { currentScreen = Screen.USER_DASHBOARD },
                     onReportsClick = { currentScreen = Screen.REPORTS_LOGIN },
                     onViajesApiClick = { currentScreen = Screen.VIAJES_API }
                 )
-                Screen.LEADER_LOGIN -> LeaderLoginScreen(
+                Screen.Líder_LOGIN -> LíderLoginScreen(
                     onBack = { currentScreen = Screen.WELCOME },
                     onLoginSuccess = { result ->
-                        currentScreen = Screen.LEADER_DASHBOARD
+                        currentScreen = Screen.Líder_DASHBOARD
                     }
                 )
-                Screen.LEADER_CHANGE_PASSWORD -> LeaderChangePasswordScreen(
+                Screen.Líder_CHANGE_PASSWORD -> LíderChangePasswordScreen(
                     onPasswordChanged = {
                         Toast.makeText(context, "Contraseña cambiada con Ã©xito", Toast.LENGTH_LONG).show()
-                        currentScreen = Screen.LEADER_DASHBOARD
+                        currentScreen = Screen.Líder_DASHBOARD
                     },
                     onBack = {
-                        currentScreen = Screen.LEADER_DASHBOARD
+                        currentScreen = Screen.Líder_DASHBOARD
                     }
                 )
-                Screen.LEADER_DASHBOARD -> LeaderDashboardScreen(
-                    onRegisterTrip = { currentScreen = Screen.LEADER_REGISTER_TRIP },
-                    onViewCalendar = { currentScreen = Screen.LEADER_CALENDAR },
-                    onChangePassword = { currentScreen = Screen.LEADER_CHANGE_PASSWORD },
-                    onCreateMetaLeader = { currentScreen = Screen.LEADER_CREATE_LEADER },
+                Screen.Líder_DASHBOARD -> LíderDashboardScreen(
+                    onRegisterTrip = { currentScreen = Screen.Líder_REGISTER_TRIP },
+                    onViewCalendar = { currentScreen = Screen.Líder_CALENDAR },
+                    onChangePassword = { currentScreen = Screen.Líder_CHANGE_PASSWORD },
+                    onCreateMetaLíder = { currentScreen = Screen.Líder_CREATE_Líder },
                     onLogout = {
                         TransportesRepository.logout()
                         currentScreen = Screen.WELCOME
                     }
                 )
-                Screen.LEADER_REGISTER_TRIP -> LeaderRegisterTripScreen(
-                    onBack = { currentScreen = Screen.LEADER_DASHBOARD }
+                Screen.Líder_REGISTER_TRIP -> LíderRegisterTripScreen(
+                    onBack = { currentScreen = Screen.Líder_DASHBOARD }
                 )
-                Screen.LEADER_CALENDAR -> LeaderCalendarScreen(
-                    onBack = { currentScreen = Screen.LEADER_DASHBOARD }
+                Screen.Líder_CALENDAR -> LíderCalendarScreen(
+                    onBack = { currentScreen = Screen.Líder_DASHBOARD }
                 )
-                Screen.LEADER_CREATE_LEADER -> CreateMetaLeaderScreen(
-                    onBack = { currentScreen = Screen.LEADER_DASHBOARD }
+                Screen.Líder_CREATE_Líder -> CreateMetaLíderScreen(
+                    onBack = { currentScreen = Screen.Líder_DASHBOARD }
                 )
                 Screen.REPORTS_LOGIN -> ReportsLoginScreen(
                     onBack = { currentScreen = Screen.WELCOME },
@@ -339,7 +340,7 @@ fun TimeSelector(
  */
 @Composable
 fun WelcomeScreen(
-    onLeaderClick: () -> Unit,
+    onLíderClick: () -> Unit,
     onUserClick: () -> Unit,
     onReportsClick: () -> Unit,
     onViajesApiClick: () -> Unit = {}
@@ -377,7 +378,7 @@ fun WelcomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp)
-                    .clickable { onLeaderClick() },
+                    .clickable { onLíderClick() },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.2f)),
@@ -393,7 +394,7 @@ fun WelcomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = "Leader Icon",
+                            contentDescription = "Líder Icon",
                             tint = PrimaryBlue,
                             modifier = Modifier.size(28.dp)
                         )
@@ -594,7 +595,7 @@ fun WelcomeScreen(
  * Pantalla de Login de Meta Líder
  */
 @Composable
-fun LeaderLoginScreen(
+fun LíderLoginScreen(
     onBack: () -> Unit,
     onLoginSuccess: (LoginResult) -> Unit
 ) {
@@ -662,17 +663,18 @@ fun LeaderLoginScreen(
                 errorMessage = null
             },
             label = { Text("Contraseña") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Black) },
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                    Icon(icon, contentDescription = "Alternar visibilidad")
+                    Icon(icon, contentDescription = "Alternar visibilidad", tint = Color.Black)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
-            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation()
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            colors = getTextFieldColors()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -721,7 +723,7 @@ fun LeaderLoginScreen(
                     } else {
                         sharedPrefs.edit().remove("saved_username").putBoolean("remember_me", false).apply()
                     }
-                    val result = TransportesRepository.loginLeaderRemote(username, password)
+                    val result = TransportesRepository.LíderRemote(username, password)
                     isLoading = false
                     if (result == LoginResult.USER_NOT_FOUND) {
                         errorMessage = "Usuario no registrado"
@@ -750,7 +752,7 @@ fun LeaderLoginScreen(
  * Pantalla para Cambio de Contraseña Obligatorio
  */
 @Composable
-fun LeaderChangePasswordScreen(
+fun LíderChangePasswordScreen(
     onPasswordChanged: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -758,7 +760,7 @@ fun LeaderChangePasswordScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    val leader = TransportesRepository.loggedLeader.value
+    val Líder = TransportesRepository.Líder.value
 
     Column(
         modifier = Modifier
@@ -801,7 +803,7 @@ fun LeaderChangePasswordScreen(
                 Icon(Icons.Default.Info, contentDescription = null, tint = StatusYellow)
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Líder: ${leader?.name ?: "Administrador"}\nUsuario: ${leader?.username}",
+                    text = "Líder: ${Líder?.name ?: "Administrador"}\nUsuario: ${Líder?.username}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                     color = Color.Black
                 )
@@ -870,8 +872,8 @@ fun LeaderChangePasswordScreen(
                     errorMessage = "Las contraseÃ±as no coinciden"
                     return@Button
                 }
-                leader?.let {
-                    val success = TransportesRepository.changeLeaderPassword(it.username, newPassword)
+                Líder?.let {
+                    val success = TransportesRepository.changeLíderPassword(it.username, newPassword)
                     if (success) {
                         onPasswordChanged()
                     } else {
@@ -897,14 +899,14 @@ fun LeaderChangePasswordScreen(
  * Dashboard de Meta Líder - Tarjetas Claras y Textos en Negro
  */
 @Composable
-fun LeaderDashboardScreen(
+fun LíderDashboardScreen(
     onRegisterTrip: () -> Unit,
     onViewCalendar: () -> Unit,
     onChangePassword: () -> Unit,
-    onCreateMetaLeader: () -> Unit,
+    onCreateMetaLíder: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val leader = TransportesRepository.loggedLeader.value
+    val Líder = TransportesRepository.Líder.value
 
     Column(
         modifier = Modifier
@@ -927,7 +929,7 @@ fun LeaderDashboardScreen(
                     )
                 )
                 Text(
-                    text = "Hola! ${leader?.name ?: "Meta Líder"}",
+                    text = "Hola! ${Líder?.name ?: "Meta Líder"}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
@@ -1052,11 +1054,11 @@ fun LeaderDashboardScreen(
         }
 
         // Tarjeta Crear Meta Líder (Solo Nivel 2)
-        if (leader?.level == 2) {
+        if (Líder?.level == 2) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onCreateMetaLeader() }
+                    .clickable { onCreateMetaLíder() }
                     .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1095,7 +1097,7 @@ fun LeaderDashboardScreen(
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun LeaderRegisterTripScreen(
+fun LíderRegisterTripScreen(
     onBack: () -> Unit
 ) {
     var route by remember { mutableStateOf("Sede Betania") } // Restringido
@@ -1214,7 +1216,7 @@ fun LeaderRegisterTripScreen(
                         }
                     },
                     label = { Text("Nombre del Participante") },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.Black) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
@@ -1505,7 +1507,7 @@ fun LeaderRegisterTripScreen(
                     route = route,
                     date = date,
                     passengers = passengerList.toList(),
-                    scheduledBy = TransportesRepository.loggedLeader.value?.username ?: "lider"
+                    scheduledBy = TransportesRepository.Líder.value?.username ?: "Líder"
                 )
                 if (success) {
                     Toast.makeText(context, "Viaje agendado correctamente en $route", Toast.LENGTH_SHORT).show()
@@ -1533,7 +1535,7 @@ fun LeaderRegisterTripScreen(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LeaderCalendarScreen(
+fun LíderCalendarScreen(
     onBack: () -> Unit
 ) {
     var calendarYear by remember { mutableStateOf(2026) }
@@ -3302,11 +3304,11 @@ fun ReportsLoginScreen(
                 errorMessage = null
             },
             label = { Text("Contraseña") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Black) },
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                    Icon(icon, contentDescription = "Alternar visibilidad")
+                    Icon(icon, contentDescription = "Alternar visibilidad", tint = Color.Black)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -3350,7 +3352,7 @@ fun ReportsLoginScreen(
                     errorMessage = "Por favor complete todos los campos"
                     return@Button
                 }
-                val result = TransportesRepository.loginLeader(username, password)
+                val result = TransportesRepository.Líder(username, password)
                 if (result == LoginResult.USER_NOT_FOUND) {
                     errorMessage = "Usuario no registrado"
                 } else if (result == LoginResult.WRONG_PASSWORD) {
@@ -3382,7 +3384,7 @@ fun ReportsDashboardScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val leader = TransportesRepository.loggedLeader.value
+    val Líder = TransportesRepository.Líder.value
 
     var startDate by remember { mutableStateOf("2026-07-01") }
     var endDate by remember { mutableStateOf("2026-07-31") }
@@ -3393,16 +3395,16 @@ fun ReportsDashboardScreen(
     var expandedCreator by remember { mutableStateOf(false) }
 
     val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
-    val filteredTrips = remember(startDate, endDate, selectedRoute, selectedCreator, leader, allTrips.value) {
+    val filteredTrips = remember(startDate, endDate, selectedRoute, selectedCreator, Líder, allTrips.value) {
         allTrips.value.filter { trip ->
-            val matchesLeader = if (leader?.level == 1) {
-                trip.scheduledBy == leader.username
+            val matchesLíder = if (Líder?.level == 1) {
+                trip.scheduledBy == Líder.username
             } else {
                 selectedCreator == "Todos" || trip.scheduledBy == selectedCreator
             }
             val matchesDate = trip.date >= startDate && trip.date <= endDate
             val matchesRoute = selectedRoute == "Todas" || trip.route == selectedRoute
-            matchesLeader && matchesDate && matchesRoute
+            matchesLíder && matchesDate && matchesRoute
         }
     }
 
@@ -3455,7 +3457,7 @@ fun ReportsDashboardScreen(
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
         )
         Text(
-            text = "Líder: ${leader?.name ?: "Meta Líder"} (${leader?.username})",
+            text = "Líder: ${Líder?.name ?: "Meta Líder"} (${Líder?.username})",
             style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
         )
 
@@ -3536,7 +3538,7 @@ fun ReportsDashboardScreen(
                 }
 
                 // Filtro "Agendado por" en el caso de Nivel 2
-                if (leader?.level == 2) {
+                if (Líder?.level == 2) {
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = { expandedCreator = true },
@@ -3546,7 +3548,7 @@ fun ReportsDashboardScreen(
                         ) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 val displaySelectedCreatorText = when (selectedCreator) {
-                                    "lider" -> "lider (Carlos GÃ³mez)"
+                                    "Líder" -> "Líder (Carlos GÃ³mez)"
                                     "admin" -> "admin (Admin Sumapaz)"
                                     else -> "Todos"
                                 }
@@ -3558,9 +3560,9 @@ fun ReportsDashboardScreen(
                             expanded = expandedCreator,
                             onDismissRequest = { expandedCreator = false }
                         ) {
-                            listOf("Todos", "lider", "admin").forEach { creator ->
+                            listOf("Todos", "Líder", "admin").forEach { creator ->
                                 val displayText = when (creator) {
-                                    "lider" -> "lider (Carlos GÃ³mez)"
+                                    "Líder" -> "Líder (Carlos GÃ³mez)"
                                     "admin" -> "admin (Admin Sumapaz)"
                                     else -> "Todos"
                                 }
@@ -3666,7 +3668,7 @@ fun ReportsDashboardScreen(
                         }
 
                         // Detalle del creador (Nivel 2)
-                        if (leader?.level == 2) {
+                        if (Líder?.level == 2) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Agendado por: ${trip.scheduledBy}",
@@ -3772,7 +3774,7 @@ fun ReportsDashboardScreen(
  * Pantalla para Crear Meta Líder (Solo accesible para Nivel 2)
  */
 @Composable
-fun CreateMetaLeaderScreen(onBack: () -> Unit) {
+fun CreateMetaLíderScreen(onBack: () -> Unit) {
     var username by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -3869,7 +3871,7 @@ fun CreateMetaLeaderScreen(onBack: () -> Unit) {
                 }
                 isLoading = true
                 coroutineScope.launch {
-                    val success = TransportesRepository.createMetaLeaderRemote(username.trim(), name.trim(), password.trim(), level)
+                    val success = TransportesRepository.createMetaLíderRemote(username.trim(), name.trim(), password.trim(), level)
                     isLoading = false
                     if (success) {
                     Toast.makeText(context, "Meta Líder creado con Ã©xito", Toast.LENGTH_LONG).show()
@@ -3965,4 +3967,5 @@ fun generateReportPdf(context: android.content.Context, trips: List<Trip>) {
         Toast.makeText(context, "Error al generar PDF: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }
+
 
