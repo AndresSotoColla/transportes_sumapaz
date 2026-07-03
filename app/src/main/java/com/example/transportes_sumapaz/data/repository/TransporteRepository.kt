@@ -79,4 +79,31 @@ class TransporteRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun login(request: com.example.transportes_sumapaz.data.remote.model.LoginRequest): Result<com.example.transportes_sumapaz.data.remote.model.LoginResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.login(request)
+            handleNetworkResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun iniciarAsistencia(request: com.example.transportes_sumapaz.data.remote.model.IniciarViajeRequest): Result<BaseResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.iniciarAsistencia(request)
+            handleNetworkResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun cerrarAsistencia(request: com.example.transportes_sumapaz.data.remote.model.CerrarViajeRequest): Result<BaseResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.cerrarAsistencia(request)
+            handleNetworkResponse(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

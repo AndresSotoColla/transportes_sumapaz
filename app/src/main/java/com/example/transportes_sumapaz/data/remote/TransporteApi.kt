@@ -1,33 +1,31 @@
 package com.example.transportes_sumapaz.data.remote
 
 import com.example.transportes_sumapaz.data.remote.model.BaseResponse
+import com.example.transportes_sumapaz.data.remote.model.CerrarViajeRequest
+import com.example.transportes_sumapaz.data.remote.model.IniciarViajeRequest
+import com.example.transportes_sumapaz.data.remote.model.LoginRequest
+import com.example.transportes_sumapaz.data.remote.model.LoginResponse
 import com.example.transportes_sumapaz.data.remote.model.ParticipantesResponse
 import com.example.transportes_sumapaz.data.remote.model.ViajesResponse
 import retrofit2.Response
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface TransporteApi {
 
-    @GET("transporte_router.php/participantes")
+    @GET("api/transporte_router.php?route=/participantes")
     suspend fun getParticipantes(): Response<ParticipantesResponse>
 
-    @GET("transporte_router.php/viajes")
+    @POST("api/transporte_router.php?route=/login")
+    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    @GET("api/transporte_router.php?route=/viajes")
     suspend fun getViajes(): Response<ViajesResponse>
 
-    @FormUrlEncoded
-    @POST("transporte_router.php/asistencia/iniciar")
-    suspend fun iniciarAsistencia(
-        @Field("id_viaje") idViaje: String,
-        @Field("numero_documento") numeroDocumento: String
-    ): Response<BaseResponse>
-    
-    @FormUrlEncoded
-    @POST("transporte_router.php/asistencia/cerrar")
-    suspend fun cerrarAsistencia(
-        @Field("id_viaje") idViaje: String,
-        @Field("numero_documento") numeroDocumento: String
-    ): Response<BaseResponse>
+    @POST("api/transporte_router.php?route=/asistencia/iniciar")
+    suspend fun iniciarAsistencia(@Body request: IniciarViajeRequest): Response<BaseResponse>
+
+    @POST("api/transporte_router.php?route=/asistencia/cerrar")
+    suspend fun cerrarAsistencia(@Body request: CerrarViajeRequest): Response<BaseResponse>
 }
