@@ -3,9 +3,8 @@ package com.example.transportes_sumapaz.ui
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,8 +62,28 @@ val LightBackground = Color(0xFFF1F5F9)  // Fondo Gris Azulado Suave (Slate 100)
 
 val StatusGreen = Color(0xFF10B981)      // Emerald (Verde Moderno)
 val StatusRed = Color(0xFFEF4444)        // Rose Red (Rojo Moderno)
-val StatusYellow = Color(0xFFF59E0B)     // Amber (Amarillo/Naranja Moderno)
-val StatusScheduled = Color(0xFF94A3B8)  // Slate (Gris Programado)
+val StatusYellow = Color(0xFFF59E0B)     // Iniciado (Amber Amarillo/Naranja)
+val StatusScheduled = Color(0xFF94A3B8)  // Programado (Slate Gris)
+
+/**
+ * Retorna la paleta de colores de textos para asegurar que el texto sea siempre negro
+ * y de alta visibilidad, incluso cuando los inputs estén deshabilitados o en modo lectura.
+ */
+@Composable
+fun getTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.Black,
+    unfocusedTextColor = Color.Black,
+    disabledTextColor = Color.Black,
+    focusedLabelColor = Color.Black,
+    unfocusedLabelColor = Color.Black.copy(alpha = 0.7f),
+    disabledLabelColor = Color.Black.copy(alpha = 0.7f),
+    focusedBorderColor = PrimaryBlue,
+    unfocusedBorderColor = Color.LightGray,
+    disabledBorderColor = Color.LightGray,
+    focusedLeadingIconColor = PrimaryBlue,
+    unfocusedLeadingIconColor = Color.Gray,
+    disabledLeadingIconColor = Color.Gray
+)
 
 @Composable
 fun TransportesSumapazApp() {
@@ -76,7 +96,6 @@ fun TransportesSumapazApp() {
     BackHandler(enabled = true) {
         when (currentScreen) {
             Screen.WELCOME -> {
-                // No hace nada, evita salir de la app
                 Toast.makeText(context, "Use los botones de la interfaz para navegar", Toast.LENGTH_SHORT).show()
             }
             Screen.LEADER_LOGIN -> { currentScreen = Screen.WELCOME }
@@ -187,12 +206,7 @@ fun DateSelector(
             .fillMaxWidth()
             .clickable { showDatePicker = true },
         enabled = false,
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledBorderColor = MaterialTheme.colorScheme.outline,
-            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        colors = getTextFieldColors()
     )
 
     if (showDatePicker) {
@@ -249,12 +263,7 @@ fun TimeSelector(
             .fillMaxWidth()
             .clickable(enabled = enabled) { showTimePicker = true },
         enabled = false,
-        colors = OutlinedTextFieldDefaults.colors(
-            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-            disabledBorderColor = MaterialTheme.colorScheme.outline,
-            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        colors = getTextFieldColors()
     )
 
     if (showTimePicker && enabled) {
@@ -286,7 +295,8 @@ fun TimeSelector(
                         text = "Seleccione Hora (Formato 24h)",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
                     )
                     TimePicker(state = timePickerState)
                 }
@@ -526,7 +536,8 @@ fun LeaderLoginScreen(
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -543,7 +554,8 @@ fun LeaderLoginScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         errorMessage?.let {
@@ -645,7 +657,8 @@ fun LeaderChangePasswordScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Líder: ${leader?.name ?: "Administrador"}\nUsuario: ${leader?.username}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.Black
                 )
             }
         }
@@ -663,7 +676,8 @@ fun LeaderChangePasswordScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -679,7 +693,8 @@ fun LeaderChangePasswordScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         errorMessage?.let {
@@ -924,7 +939,8 @@ fun LeaderRegisterTripScreen(
             item {
                 Text(
                     text = "Seleccione Destino de Asistencia:",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
@@ -964,7 +980,6 @@ fun LeaderRegisterTripScreen(
                     value = nameInput,
                     onValueChange = {
                         nameInput = it
-                        // Si cambia el nombre, resetear autocompletado a menos que vuelva a elegir uno
                         val matched = TransportesRepository.getParticipantByName(it)
                         if (matched == null) {
                             isExistingParticipant = false
@@ -974,7 +989,8 @@ fun LeaderRegisterTripScreen(
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    singleLine = true,
+                    colors = getTextFieldColors()
                 )
             }
 
@@ -1020,7 +1036,8 @@ fun LeaderRegisterTripScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "${participant.name} (${participant.docNumber})",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Color.Black
                                     )
                                 }
                             }
@@ -1075,10 +1092,8 @@ fun LeaderRegisterTripScreen(
                                     readOnly = true,
                                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline
-                                    )
+                                    colors = getTextFieldColors(),
+                                    enabled = !isExistingParticipant
                                 )
                                 ExposedDropdownMenu(
                                     expanded = expandedDocType && !isExistingParticipant,
@@ -1104,7 +1119,9 @@ fun LeaderRegisterTripScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                singleLine = true
+                                singleLine = true,
+                                colors = getTextFieldColors(),
+                                enabled = !isExistingParticipant
                             )
 
                             OutlinedTextField(
@@ -1115,7 +1132,9 @@ fun LeaderRegisterTripScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                singleLine = true
+                                singleLine = true,
+                                colors = getTextFieldColors(),
+                                enabled = !isExistingParticipant
                             )
 
                             OutlinedTextField(
@@ -1126,7 +1145,9 @@ fun LeaderRegisterTripScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                singleLine = true
+                                singleLine = true,
+                                colors = getTextFieldColors(),
+                                enabled = !isExistingParticipant
                             )
 
                             OutlinedTextField(
@@ -1136,7 +1157,9 @@ fun LeaderRegisterTripScreen(
                                 readOnly = isExistingParticipant,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                singleLine = true
+                                singleLine = true,
+                                colors = getTextFieldColors(),
+                                enabled = !isExistingParticipant
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -1192,7 +1215,8 @@ fun LeaderRegisterTripScreen(
             item {
                 Text(
                     text = "Pasajeros Agendados (${passengerList.size}):",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.Black
                 )
             }
 
@@ -1219,7 +1243,7 @@ fun LeaderRegisterTripScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(text = passenger.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                Text(text = passenger.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.Black)
                                 Text(
                                     text = "Cédula: ${passenger.docNumber} • Proy: ${passenger.projectNumber}",
                                     style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
@@ -1314,7 +1338,8 @@ fun LeaderCalendarScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Viajes Agendados",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.Black
             )
         }
 
@@ -1341,7 +1366,8 @@ fun LeaderCalendarScreen(
             Text(
                 text = "${monthNames[calendarMonth - 1]} $calendarYear",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = Color.Black
             )
 
             IconButton(
@@ -1423,7 +1449,8 @@ fun LeaderCalendarScreen(
                                 Text(
                                     text = "Ruta: ${trip.route}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    color = Color.Black
                                 )
                                 val statusLabel = when (trip.status) {
                                     TripStatus.CUMPLIDO -> "Cumplido"
@@ -1453,7 +1480,8 @@ fun LeaderCalendarScreen(
 
                             Text(
                                 text = "Pasajeros Programados (${trip.passengers.size}):",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color.Black
                             )
                             
                             trip.passengers.forEach { passenger ->
@@ -1595,7 +1623,8 @@ fun UserDashboardScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                        singleLine = true,
+                        colors = getTextFieldColors()
                     )
 
                     errorMessage?.let {
@@ -1657,7 +1686,8 @@ fun UserDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Registrar viaje ocasional",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.Black
                         )
                         Text(
                             text = "Para traslados excepcionales fuera de programación.",
@@ -1758,7 +1788,8 @@ fun UserDashboardScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "Asistencia: ${trip.route}",
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = Color.Black
                                     )
                                     Text(
                                         text = "Fecha: ${trip.date} • Estado: $statusLabel",
@@ -1816,7 +1847,6 @@ fun UserTripDetailsScreen(
 
     // Inicializar inputs si ya hay algún registro previo del conductor en el viaje
     LaunchedEffect(refreshedTrip.attendanceRecords) {
-        // Buscar si ya hay asistencias confirmadas
         val firstRecord = refreshedTrip.attendanceRecords.firstOrNull()
         if (firstRecord != null) {
             driverName = firstRecord.driverName
@@ -1858,8 +1888,14 @@ fun UserTripDetailsScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = PrimaryBlue
                 )
+                val statusLabel = when (refreshedTrip.status) {
+                    TripStatus.CUMPLIDO -> "Cumplido"
+                    TripStatus.NO_CUMPLIDO -> "No cumplido"
+                    TripStatus.INICIADO -> "Iniciado"
+                    TripStatus.POR_CUMPLIR -> "Programado"
+                }
                 Text(
-                    text = "Viaje programado: ${refreshedTrip.date} • Estado: ${refreshedTrip.status}",
+                    text = "Viaje programado: ${refreshedTrip.date} • Estado: $statusLabel",
                     style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                 )
             }
@@ -1889,7 +1925,6 @@ fun UserTripDetailsScreen(
                             style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                         )
 
-                        // Deshabilitar edición si ya se cerró el viaje (CUMPLIDO o NO_CUMPLIDO)
                         val editable = isTripActive || isTripInitiated
 
                         OutlinedTextField(
@@ -1899,7 +1934,8 @@ fun UserTripDetailsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true,
-                            enabled = editable
+                            enabled = editable,
+                            colors = getTextFieldColors()
                         )
 
                         OutlinedTextField(
@@ -1909,7 +1945,8 @@ fun UserTripDetailsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             singleLine = true,
-                            enabled = editable
+                            enabled = editable,
+                            colors = getTextFieldColors()
                         )
 
                         // Hora de inicio con el TimeSelector nativo (Formato 24h)
@@ -1932,10 +1969,7 @@ fun UserTripDetailsScreen(
                                 readOnly = true,
                                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                    disabledBorderColor = MaterialTheme.colorScheme.outline
-                                ),
+                                colors = getTextFieldColors(),
                                 enabled = editable
                             )
                             ExposedDropdownMenu(
@@ -1964,7 +1998,8 @@ fun UserTripDetailsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 singleLine = true,
-                                enabled = editable
+                                enabled = editable,
+                                colors = getTextFieldColors()
                             )
                         }
                     }
@@ -2005,12 +2040,21 @@ fun UserTripDetailsScreen(
                                 val suffix = if (passenger.docNumber == loggedCedula) " (Yo)" else ""
                                 Text(
                                     text = passenger.name + suffix,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = Color.Black
                                 )
-                                Text(
-                                    text = "Proyecto: ${passenger.projectNumber} • Cédula: ${passenger.docNumber}",
-                                    style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                                )
+                                // Ocultar Cédula de otros participantes
+                                if (passenger.docNumber == loggedCedula) {
+                                    Text(
+                                        text = "Proyecto: ${passenger.projectNumber} • Cédula: ${passenger.docNumber}",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Proyecto: ${passenger.projectNumber}", // Cédula oculta por privacidad
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                    )
+                                }
                             }
 
                             if (isAttended) {
@@ -2109,10 +2153,11 @@ fun UserTripDetailsScreen(
                                 )
                             }
 
-                            // Cambiar estado a INICIADO
+                            // Cambiar estado a INICIADO y Redirigir de vuelta al listado
                             val started = TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.INICIADO)
                             if (started) {
                                 Toast.makeText(context, "¡Aceptado! Inicio de viaje registrado", Toast.LENGTH_LONG).show()
+                                onBack() // Redirección inmediata al dashboard de viajes
                             }
                         },
                         modifier = Modifier
@@ -2224,7 +2269,8 @@ fun UserRegisterOccasionalTripScreen(
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Viaje Ocasional",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.Black
             )
         }
 
@@ -2240,7 +2286,8 @@ fun UserRegisterOccasionalTripScreen(
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -2263,7 +2310,8 @@ fun UserRegisterOccasionalTripScreen(
             leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -2278,7 +2326,8 @@ fun UserRegisterOccasionalTripScreen(
             leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            singleLine = true,
+            colors = getTextFieldColors()
         )
 
         errorMessage?.let {
