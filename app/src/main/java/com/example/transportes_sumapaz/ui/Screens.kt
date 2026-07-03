@@ -646,7 +646,7 @@ fun LíderLoginScreen(
                 errorMessage = null
             },
             label = { Text("Usuario") },
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
@@ -818,7 +818,7 @@ fun LíderChangePasswordScreen(
                 errorMessage = null
             },
             label = { Text("Nueva Contraseña") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -835,7 +835,7 @@ fun LíderChangePasswordScreen(
                 errorMessage = null
             },
             label = { Text("Confirmar Contraseña") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -2138,7 +2138,7 @@ fun UserDashboardScreen(
                             errorMessage = null
                         },
                         label = { Text("Ingrese su CÃ©dula / Documento") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -2972,7 +2972,7 @@ fun UserRegisterOccasionalTripScreen(
                 errorMessage = null
             },
             label = { Text("Nombre del Pasajero") },
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
@@ -3287,7 +3287,7 @@ fun ReportsLoginScreen(
                 errorMessage = null
             },
             label = { Text("Usuario") },
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
@@ -3828,10 +3828,16 @@ fun CreateMetaLíderScreen(onBack: () -> Unit) {
             value = password,
             onValueChange = { password = it; errorMessage = null },
             label = { Text("Contraseña Inicial") },
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    Icon(icon, contentDescription = "Alternar visibilidad", tint = androidx.compose.ui.graphics.Color.Black)
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = getTextFieldColors(),
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
             singleLine = true
         )
         Spacer(modifier = Modifier.height(16.dp))
