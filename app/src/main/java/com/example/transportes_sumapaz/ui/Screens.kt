@@ -1,6 +1,7 @@
 package com.example.transportes_sumapaz.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -59,7 +60,8 @@ val LightBackground = Color(0xFFF8FAFC)  // Fondo gris suave
 
 val StatusGreen = Color(0xFF2E7D32)      // Cumplido
 val StatusRed = Color(0xFFC62828)        // No cumplido
-val StatusYellow = Color(0xFFE65100)     // Por cumplir (ámbar/naranja)
+val StatusYellow = Color(0xFFE65100)     // Iniciado (Ámbar / Naranja)
+val StatusScheduled = Color(0xFF64748B)  // Programado (Gris pizarra)
 
 @Composable
 fun TransportesSumapazApp() {
@@ -67,6 +69,30 @@ fun TransportesSumapazApp() {
     var loggedUserCedula by remember { mutableStateOf("") }
     var selectedTripForDetails by remember { mutableStateOf<Trip?>(null) }
     val context = LocalContext.current
+
+    // Interceptor del botón "Atrás" del celular
+    BackHandler(enabled = true) {
+        when (currentScreen) {
+            Screen.WELCOME -> {
+                // No hace nada, evita salir de la app
+                Toast.makeText(context, "Use los botones de la interfaz para navegar", Toast.LENGTH_SHORT).show()
+            }
+            Screen.LEADER_LOGIN -> { currentScreen = Screen.WELCOME }
+            Screen.LEADER_CHANGE_PASSWORD -> {
+                TransportesRepository.logout()
+                currentScreen = Screen.WELCOME
+            }
+            Screen.LEADER_DASHBOARD -> {
+                TransportesRepository.logout()
+                currentScreen = Screen.WELCOME
+            }
+            Screen.LEADER_REGISTER_TRIP -> { currentScreen = Screen.LEADER_DASHBOARD }
+            Screen.LEADER_CALENDAR -> { currentScreen = Screen.LEADER_DASHBOARD }
+            Screen.USER_DASHBOARD -> { currentScreen = Screen.WELCOME }
+            Screen.USER_TRIP_DETAILS -> { currentScreen = Screen.USER_DASHBOARD }
+            Screen.USER_REGISTER_OCCASIONAL -> { currentScreen = Screen.USER_DASHBOARD }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -194,6 +220,76 @@ fun DateSelector(
         ) {
             DatePicker(state = datePickerState)
         }
+    }
+}
+
+/**
+ * Componente Reutilizable de Selección de Hora en Formato Militar (24h)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimeSelector(
+    label: String,
+    selectedTime: String,
+    onTimeSelected: (String) -> Unit,
+    enabled: Boolean = true
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timePickerState = rememberTimePickerState(is24Hour = true)
+
+    OutlinedTextField(
+        value = selectedTime,
+        onValueChange = {},
+        label = { Text(label) },
+        leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
+        readOnly = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { showTimePicker = true },
+        enabled = false,
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledBorderColor = MaterialTheme.colorScheme.outline,
+            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
+
+    if (showTimePicker && enabled) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val hour = timePickerState.hour
+                        val minute = timePickerState.minute
+                        onTimeSelected(String.format("%02d:%02d", hour, minute))
+                        showTimePicker = false
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Cancelar")
+                }
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Seleccione Hora (Formato 24h)",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                    TimePicker(state = timePickerState)
+                }
+            }
+        )
     }
 }
 
@@ -749,7 +845,7 @@ fun LeaderDashboardScreen(
 /**
  * Pantalla de Registro de Viajes (Meta Líder)
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LeaderRegisterTripScreen(
     onBack: () -> Unit
@@ -778,6 +874,10 @@ fun LeaderRegisterTripScreen(
             it.name.contains(nameInput, ignoreCase = true) && !passengerList.any { p -> p.docNumber == it.docNumber }
         }
     }
+
+    // Dropdown de Tipo de Documento
+    var expandedDocType by remember { mutableStateOf(false) }
+    val docTypes = listOf("Cédula de Ciudadanía", "Cédula de Extranjería", "Pasaporte")
 
     Column(
         modifier = Modifier
@@ -959,15 +1059,38 @@ fun LeaderRegisterTripScreen(
                                 )
                             }
 
-                            OutlinedTextField(
-                                value = docType,
-                                onValueChange = { if (!isExistingParticipant) docType = it },
-                                label = { Text("Tipo de Documento") },
-                                readOnly = isExistingParticipant,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                singleLine = true
-                            )
+                            // Selector tipo de documento (Cédula de ciudadanía, extranjería, pasaporte)
+                            ExposedDropdownMenuBox(
+                                expanded = expandedDocType && !isExistingParticipant,
+                                onExpandedChange = { if (!isExistingParticipant) expandedDocType = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = docType,
+                                    onValueChange = {},
+                                    label = { Text("Tipo de Documento") },
+                                    readOnly = true,
+                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                        disabledBorderColor = MaterialTheme.colorScheme.outline
+                                    )
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedDocType && !isExistingParticipant,
+                                    onDismissRequest = { expandedDocType = false }
+                                ) {
+                                    docTypes.forEach { selection ->
+                                        DropdownMenuItem(
+                                            text = { Text(selection) },
+                                            onClick = {
+                                                docType = selection
+                                                expandedDocType = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
 
                             OutlinedTextField(
                                 value = docNumber,
@@ -1282,7 +1405,8 @@ fun LeaderCalendarScreen(
                             when (trip.status) {
                                 TripStatus.CUMPLIDO -> StatusGreen.copy(alpha = 0.5f)
                                 TripStatus.NO_CUMPLIDO -> StatusRed.copy(alpha = 0.5f)
-                                TripStatus.POR_CUMPLIR -> StatusYellow.copy(alpha = 0.5f)
+                                TripStatus.INICIADO -> StatusYellow.copy(alpha = 0.5f)
+                                TripStatus.POR_CUMPLIR -> StatusScheduled.copy(alpha = 0.5f)
                             }
                         )
                     ) {
@@ -1300,12 +1424,14 @@ fun LeaderCalendarScreen(
                                 val statusLabel = when (trip.status) {
                                     TripStatus.CUMPLIDO -> "Cumplido"
                                     TripStatus.NO_CUMPLIDO -> "No cumplido"
-                                    TripStatus.POR_CUMPLIR -> "Por cumplir"
+                                    TripStatus.INICIADO -> "Iniciado"
+                                    TripStatus.POR_CUMPLIR -> "Programado"
                                 }
                                 val statusColor = when (trip.status) {
                                     TripStatus.CUMPLIDO -> StatusGreen
                                     TripStatus.NO_CUMPLIDO -> StatusRed
-                                    TripStatus.POR_CUMPLIR -> StatusYellow
+                                    TripStatus.INICIADO -> StatusYellow
+                                    TripStatus.POR_CUMPLIR -> StatusScheduled
                                 }
                                 Card(
                                     colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.15f))
@@ -1595,6 +1721,19 @@ fun UserDashboardScreen(
                 ) {
                     items(userTrips) { trip ->
                         val isAttended = trip.attendanceRecords.any { it.passengerCedula == participant.docNumber }
+                        val statusLabel = when (trip.status) {
+                            TripStatus.CUMPLIDO -> "Cumplido"
+                            TripStatus.NO_CUMPLIDO -> "No cumplido"
+                            TripStatus.INICIADO -> "Iniciado"
+                            TripStatus.POR_CUMPLIR -> "Pendiente de Inicio"
+                        }
+                        val statusColor = when (trip.status) {
+                            TripStatus.CUMPLIDO -> StatusGreen
+                            TripStatus.NO_CUMPLIDO -> StatusRed
+                            TripStatus.INICIADO -> StatusYellow
+                            TripStatus.POR_CUMPLIR -> StatusScheduled
+                        }
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1618,19 +1757,17 @@ fun UserDashboardScreen(
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                                     )
                                     Text(
-                                        text = "Fecha: ${trip.date} • Estado: ${trip.status}",
+                                        text = "Fecha: ${trip.date} • Estado: $statusLabel",
                                         style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                                     )
                                 }
                                 
                                 Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isAttended) StatusGreen.copy(alpha = 0.15f) else StatusYellow.copy(alpha = 0.15f)
-                                    )
+                                    colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.15f))
                                 ) {
                                     Text(
-                                        text = if (isAttended) "Asistencia OK" else "Pendiente",
-                                        color = if (isAttended) StatusGreen else StatusYellow,
+                                        text = if (isAttended) "Asistencia OK" else statusLabel,
+                                        color = if (isAttended) StatusGreen else statusColor,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
@@ -1645,8 +1782,9 @@ fun UserDashboardScreen(
 }
 
 /**
- * Pantalla de Detalles de Viaje del Usuario (Apertura, Asistencia de Compañeros, y Cierre)
+ * Pantalla de Detalles de Viaje del Usuario (Apertura, Asistencia de Compañeros, e Inicio / Cierre del Viaje)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserTripDetailsScreen(
     trip: Trip?,
@@ -1661,25 +1799,39 @@ fun UserTripDetailsScreen(
     var driverName by remember { mutableStateOf("") }
     var plateNumber by remember { mutableStateOf("") }
     var startTime by remember { mutableStateOf("") }
-    var vehicleType by remember { mutableStateOf("") }
-
+    
+    // Selector Tipo Vehículo (Van, Camioneta, Bus, Otro)
+    var selectedVehicleType by remember { mutableStateOf("Van") }
+    var customVehicleType by remember { mutableStateOf("") }
+    var expandedVehicle by remember { mutableStateOf(false) }
+    
     val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
     val refreshedTrip = remember(allTrips.value, trip.id) {
         allTrips.value.find { it.id == trip.id } ?: trip
     }
 
-    // Inicializar inputs si ya el conductor se guardó previamente en alguna asistencia de este usuario
+    // Inicializar inputs si ya hay algún registro previo del conductor en el viaje
     LaunchedEffect(refreshedTrip.attendanceRecords) {
-        val myRecord = refreshedTrip.attendanceRecords.find { it.passengerCedula == loggedCedula }
-        if (myRecord != null) {
-            driverName = myRecord.driverName
-            plateNumber = myRecord.plateNumber
-            startTime = myRecord.startTime
-            vehicleType = myRecord.vehicleType
+        // Buscar si ya hay asistencias confirmadas
+        val firstRecord = refreshedTrip.attendanceRecords.firstOrNull()
+        if (firstRecord != null) {
+            driverName = firstRecord.driverName
+            plateNumber = firstRecord.plateNumber
+            startTime = firstRecord.startTime
+            
+            val matchesType = listOf("Van", "Camioneta", "Bus").contains(firstRecord.vehicleType)
+            if (matchesType) {
+                selectedVehicleType = firstRecord.vehicleType
+            } else {
+                selectedVehicleType = "Otro"
+                customVehicleType = firstRecord.vehicleType
+            }
         }
     }
 
     val context = LocalContext.current
+    val isTripActive = refreshedTrip.status == TripStatus.POR_CUMPLIR
+    val isTripInitiated = refreshedTrip.status == TripStatus.INICIADO
 
     Column(
         modifier = Modifier
@@ -1703,7 +1855,7 @@ fun UserTripDetailsScreen(
                     color = PrimaryBlue
                 )
                 Text(
-                    text = "Viaje programado: ${refreshedTrip.date}",
+                    text = "Viaje programado: ${refreshedTrip.date} • Estado: ${refreshedTrip.status}",
                     style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                 )
             }
@@ -1725,13 +1877,16 @@ fun UserTripDetailsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Datos del Transporte (Apertura)",
+                            text = "Datos del Transporte",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
                         )
                         Text(
-                            text = "Registre los detalles de salida del vehículo. Estos se asociarán a las asistencias que confirme.",
+                            text = "Registre los detalles del vehículo y conductor. Solo se permiten modificar antes de iniciar el viaje.",
                             style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                         )
+
+                        // Deshabilitar edición si ya se cerró el viaje (CUMPLIDO o NO_CUMPLIDO)
+                        val editable = isTripActive || isTripInitiated
 
                         OutlinedTextField(
                             value = driverName,
@@ -1739,7 +1894,8 @@ fun UserTripDetailsScreen(
                             label = { Text("Nombre del Conductor") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            singleLine = true
+                            singleLine = true,
+                            enabled = editable
                         )
 
                         OutlinedTextField(
@@ -1748,25 +1904,63 @@ fun UserTripDetailsScreen(
                             label = { Text("Placa del Vehículo") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            singleLine = true
+                            singleLine = true,
+                            enabled = editable
                         )
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Hora de inicio con el TimeSelector nativo (Formato 24h)
+                        TimeSelector(
+                            label = "Hora de Salida (Inicio)",
+                            selectedTime = startTime,
+                            onTimeSelected = { startTime = it },
+                            enabled = editable
+                        )
+
+                        // Selector cerrado para el Tipo de Vehículo (Van, Camioneta, Bus, Otro)
+                        ExposedDropdownMenuBox(
+                            expanded = expandedVehicle && editable,
+                            onExpandedChange = { if (editable) expandedVehicle = it }
+                        ) {
                             OutlinedTextField(
-                                value = startTime,
-                                onValueChange = { startTime = it },
-                                label = { Text("Hora de Inicio") },
-                                modifier = Modifier.weight(1f),
+                                value = selectedVehicleType,
+                                onValueChange = {},
+                                label = { Text("Tipo de Vehículo") },
+                                readOnly = true,
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                singleLine = true
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledBorderColor = MaterialTheme.colorScheme.outline
+                                ),
+                                enabled = editable
                             )
+                            ExposedDropdownMenu(
+                                expanded = expandedVehicle && editable,
+                                onDismissRequest = { expandedVehicle = false }
+                            ) {
+                                val vehicleTypes = listOf("Van", "Camioneta", "Bus", "Otro")
+                                vehicleTypes.forEach { selection ->
+                                    DropdownMenuItem(
+                                        text = { Text(selection) },
+                                        onClick = {
+                                            selectedVehicleType = selection
+                                            expandedVehicle = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Si elige "Otro", se habilita el textfield libre
+                        if (selectedVehicleType == "Otro") {
                             OutlinedTextField(
-                                value = vehicleType,
-                                onValueChange = { vehicleType = it },
-                                label = { Text("Tipo Vehículo") },
-                                modifier = Modifier.weight(1f),
+                                value = customVehicleType,
+                                onValueChange = { customVehicleType = it },
+                                label = { Text("Especifique tipo de vehículo") },
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                singleLine = true
+                                singleLine = true,
+                                enabled = editable
                             )
                         }
                     }
@@ -1785,6 +1979,7 @@ fun UserTripDetailsScreen(
             items(refreshedTrip.passengers) { passenger ->
                 val passengerRecord = refreshedTrip.attendanceRecords.find { it.passengerCedula == passenger.docNumber }
                 val isAttended = passengerRecord != null
+                val editable = isTripActive || isTripInitiated
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1817,8 +2012,12 @@ fun UserTripDetailsScreen(
                             if (isAttended) {
                                 IconButton(
                                     onClick = {
-                                        TransportesRepository.removeAttendance(refreshedTrip.id, passenger.docNumber)
-                                        Toast.makeText(context, "Asistencia removida para ${passenger.name}", Toast.LENGTH_SHORT).show()
+                                        if (editable) {
+                                            TransportesRepository.removeAttendance(refreshedTrip.id, passenger.docNumber)
+                                            Toast.makeText(context, "Asistencia removida para ${passenger.name}", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "El viaje ya está cerrado", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 ) {
                                     Icon(Icons.Default.CheckCircle, contentDescription = "Remover", tint = StatusGreen)
@@ -1826,25 +2025,36 @@ fun UserTripDetailsScreen(
                             } else {
                                 Button(
                                     onClick = {
-                                        if (driverName.isBlank() || plateNumber.isBlank() || startTime.isBlank() || vehicleType.isBlank()) {
-                                            Toast.makeText(context, "Debe registrar primero los 4 datos del transporte para abrir el viaje", Toast.LENGTH_LONG).show()
+                                        if (!editable) {
+                                            Toast.makeText(context, "El viaje ya está cerrado", Toast.LENGTH_SHORT).show()
                                             return@Button
                                         }
+                                        if (driverName.isBlank() || plateNumber.isBlank() || startTime.isBlank()) {
+                                            Toast.makeText(context, "Debe registrar primero los datos del transporte", Toast.LENGTH_LONG).show()
+                                            return@Button
+                                        }
+                                        val finalVehicle = if (selectedVehicleType == "Otro") customVehicleType.trim() else selectedVehicleType
+                                        if (selectedVehicleType == "Otro" && finalVehicle.isBlank()) {
+                                            Toast.makeText(context, "Especifique el tipo de vehículo", Toast.LENGTH_LONG).show()
+                                            return@Button
+                                        }
+
                                         val success = TransportesRepository.confirmAttendance(
                                             tripId = refreshedTrip.id,
                                             passengerCedula = passenger.docNumber,
                                             driverName = driverName.trim(),
                                             plateNumber = plateNumber.trim().uppercase(),
                                             startTime = startTime.trim(),
-                                            vehicleType = vehicleType.trim()
+                                            vehicleType = finalVehicle
                                         )
                                         if (success) {
-                                            Toast.makeText(context, "Confirmado en vehículo $plateNumber", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Asistencia confirmada para ${passenger.name}", Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                                     shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    enabled = editable
                                 ) {
                                     Text("Confirmar", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                                 }
@@ -1868,55 +2078,108 @@ fun UserTripDetailsScreen(
                 }
             }
 
-            // Sección de Cierre del Viaje
-            item {
-                Divider()
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.03f)),
-                    border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.1f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = "Cerrar Viaje",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = PrimaryBlue
-                        )
-                        Text(
-                            text = "Actualice el estado final del viaje a completado o no cumplido. Esto finalizará el viaje en el calendario.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.CUMPLIDO)
-                                    Toast.makeText(context, "Viaje Cerrado como CUMPLIDO", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.Check, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+            // Flujo de Inicio de Viaje (Solo si el viaje está en estado POR_CUMPLIR)
+            if (isTripActive) {
+                item {
+                    Button(
+                        onClick = {
+                            if (driverName.isBlank() || plateNumber.isBlank() || startTime.isBlank()) {
+                                Toast.makeText(context, "Complete todos los campos del vehículo para iniciar", Toast.LENGTH_LONG).show()
+                                return@Button
+                            }
+                            val finalVehicle = if (selectedVehicleType == "Otro") customVehicleType.trim() else selectedVehicleType
+                            if (selectedVehicleType == "Otro" && finalVehicle.isBlank()) {
+                                Toast.makeText(context, "Especifique el tipo de vehículo", Toast.LENGTH_LONG).show()
+                                return@Button
                             }
 
-                            Button(
-                                onClick = {
-                                    TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.NO_CUMPLIDO)
-                                    Toast.makeText(context, "Viaje Cerrado como NO CUMPLIDO", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = StatusRed),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
+                            // Auto-confirmar al conductor/usuario logueado si no se ha confirmado
+                            if (refreshedTrip.attendanceRecords.none { it.passengerCedula == loggedCedula }) {
+                                TransportesRepository.confirmAttendance(
+                                    tripId = refreshedTrip.id,
+                                    passengerCedula = loggedCedula,
+                                    driverName = driverName.trim(),
+                                    plateNumber = plateNumber.trim().uppercase(),
+                                    startTime = startTime.trim(),
+                                    vehicleType = finalVehicle
+                                )
+                            }
+
+                            // Cambiar estado a INICIADO
+                            val started = TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.INICIADO)
+                            if (started) {
+                                Toast.makeText(context, "¡Aceptado! Inicio de viaje registrado", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusYellow)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Aceptar inicio del viaje",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+            }
+
+            // Sección de Cierre del Viaje (Solo se muestra una vez el viaje está INICIADO)
+            if (isTripInitiated) {
+                item {
+                    Divider()
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.03f)),
+                        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = "Cerrar Viaje",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = PrimaryBlue
+                            )
+                            Text(
+                                text = "El viaje ha sido iniciado. Al concluir el recorrido, seleccione el estado de cumplimiento final del viaje.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(Icons.Default.Warning, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("No Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                Button(
+                                    onClick = {
+                                        TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.CUMPLIDO)
+                                        Toast.makeText(context, "Viaje Cerrado como CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                        onBack()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+
+                                Button(
+                                    onClick = {
+                                        TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.NO_CUMPLIDO)
+                                        Toast.makeText(context, "Viaje Cerrado como NO CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                        onBack()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(Icons.Default.Warning, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("No Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                }
                             }
                         }
                     }
@@ -2151,13 +2414,15 @@ fun CalendarGrid(
                                 
                                 val dayBgColor = if (tripsOnDay.isNotEmpty()) {
                                     val hasPending = tripsOnDay.any { it.status == TripStatus.POR_CUMPLIR }
+                                    val hasIniciado = tripsOnDay.any { it.status == TripStatus.INICIADO }
                                     val hasFailed = tripsOnDay.any { it.status == TripStatus.NO_CUMPLIDO }
                                     val hasSuccess = tripsOnDay.any { it.status == TripStatus.CUMPLIDO }
 
                                     when {
-                                        hasPending -> StatusYellow.copy(alpha = 0.2f)
+                                        hasIniciado -> StatusYellow.copy(alpha = 0.2f)
                                         hasFailed -> StatusRed.copy(alpha = 0.2f)
                                         hasSuccess -> StatusGreen.copy(alpha = 0.2f)
+                                        hasPending -> StatusScheduled.copy(alpha = 0.2f)
                                         else -> Color.Transparent
                                     }
                                 } else {
@@ -2199,7 +2464,8 @@ fun CalendarGrid(
                                                     val dotColor = when (trip.status) {
                                                         TripStatus.CUMPLIDO -> StatusGreen
                                                         TripStatus.NO_CUMPLIDO -> StatusRed
-                                                        TripStatus.POR_CUMPLIR -> StatusYellow
+                                                        TripStatus.INICIADO -> StatusYellow
+                                                        TripStatus.POR_CUMPLIR -> StatusScheduled
                                                     }
                                                     Box(
                                                         modifier = Modifier

@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 enum class TripStatus {
     CUMPLIDO,      // Verde
     NO_CUMPLIDO,   // Rojo
-    POR_CUMPLIR    // Amarillo
+    POR_CUMPLIR,   // Gris (Programado)
+    INICIADO       // Amarillo/Naranja (Iniciado)
 }
 
 /**
@@ -96,7 +97,7 @@ object TransportesRepository {
 
     // Inicialización de datos de prueba
     init {
-        // Viaje a Sede Betania para Hoy (2026-07-03)
+        // Viaje a Sede Betania para Hoy (2026-07-03) - Programado (POR_CUMPLIR)
         trips.add(
             Trip(
                 id = "trip-betania-today",
@@ -110,19 +111,21 @@ object TransportesRepository {
             )
         )
 
-        // Viaje a Sede San Juan para Hoy (2026-07-03)
-        trips.add(
-            Trip(
-                id = "trip-sanjuan-today",
-                date = "2026-07-03",
-                route = "Sede San Juan",
-                status = TripStatus.POR_CUMPLIR,
-                passengers = listOf(
-                    globalParticipants[2], // Pedro Gómez (3030)
-                    globalParticipants[3]  // Ana Vega (4040)
-                )
+        // Viaje a Sede San Juan para Hoy (2026-07-03) - Iniciado (INICIADO) para pruebas
+        val tripSanJuan = Trip(
+            id = "trip-sanjuan-today",
+            date = "2026-07-03",
+            route = "Sede San Juan",
+            status = TripStatus.INICIADO,
+            passengers = listOf(
+                globalParticipants[2], // Pedro Gómez (3030)
+                globalParticipants[3]  // Ana Vega (4040)
             )
         )
+        tripSanJuan.attendanceRecords.add(
+            AttendanceRecord("3030", "Andrés Conductor", "OPQ-789", "09:30", "Van")
+        )
+        trips.add(tripSanJuan)
 
         // Viaje pasado ya Cumplido (2026-07-01)
         val tripPast = Trip(
@@ -133,7 +136,7 @@ object TransportesRepository {
             passengers = listOf(globalParticipants[0])
         )
         tripPast.attendanceRecords.add(
-            AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30 AM", "Microbús")
+            AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30", "Bus")
         )
         trips.add(tripPast)
     }
