@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.transportes_sumapaz.data.LoginResult
 import com.example.transportes_sumapaz.data.OccasionalTrip
+import com.example.transportes_sumapaz.data.Participant
 import com.example.transportes_sumapaz.data.TransportesRepository
 import com.example.transportes_sumapaz.data.Trip
 import com.example.transportes_sumapaz.data.TripStatus
@@ -45,8 +46,8 @@ enum class Screen {
     LEADER_REGISTER_TRIP,
     LEADER_CALENDAR,
     USER_DASHBOARD,
-    USER_REGISTER_OCCASIONAL,
-    USER_REGISTER_ATTENDANCE
+    USER_TRIP_DETAILS,
+    USER_REGISTER_OCCASIONAL
 }
 
 // Colores del sistema de diseño
@@ -58,11 +59,13 @@ val LightBackground = Color(0xFFF8FAFC)  // Fondo gris suave
 
 val StatusGreen = Color(0xFF2E7D32)      // Cumplido
 val StatusRed = Color(0xFFC62828)        // No cumplido
-val StatusYellow = Color(0xFFE65100)     // Por cumplir (ámbar/naranja de buena visibilidad)
+val StatusYellow = Color(0xFFE65100)     // Por cumplir (ámbar/naranja)
 
 @Composable
 fun TransportesSumapazApp() {
     var currentScreen by remember { mutableStateOf(Screen.WELCOME) }
+    var loggedUserCedula by remember { mutableStateOf("") }
+    var selectedTripForDetails by remember { mutableStateOf<Trip?>(null) }
     val context = LocalContext.current
 
     Surface(
@@ -110,17 +113,86 @@ fun TransportesSumapazApp() {
                     onBack = { currentScreen = Screen.LEADER_DASHBOARD }
                 )
                 Screen.USER_DASHBOARD -> UserDashboardScreen(
+                    onBack = { currentScreen = Screen.WELCOME },
                     onRegisterOccasional = { currentScreen = Screen.USER_REGISTER_OCCASIONAL },
-                    onRegisterAttendance = { currentScreen = Screen.USER_REGISTER_ATTENDANCE },
-                    onBack = { currentScreen = Screen.WELCOME }
+                    onLoggedIn = { cedula ->
+                        loggedUserCedula = cedula
+                    },
+                    onSelectTrip = { trip ->
+                        selectedTripForDetails = trip
+                        currentScreen = Screen.USER_TRIP_DETAILS
+                    }
+                )
+                Screen.USER_TRIP_DETAILS -> UserTripDetailsScreen(
+                    trip = selectedTripForDetails,
+                    loggedCedula = loggedUserCedula,
+                    onBack = { currentScreen = Screen.USER_DASHBOARD }
                 )
                 Screen.USER_REGISTER_OCCASIONAL -> UserRegisterOccasionalTripScreen(
                     onBack = { currentScreen = Screen.USER_DASHBOARD }
                 )
-                Screen.USER_REGISTER_ATTENDANCE -> UserRegisterAttendanceScreen(
-                    onBack = { currentScreen = Screen.USER_DASHBOARD }
-                )
             }
+        }
+    }
+}
+
+/**
+ * Componente Reutilizable de Selección de Fecha con Diálogo de Calendario Nativo (DatePicker)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DateSelector(
+    label: String,
+    selectedDate: String,
+    onDateSelected: (String) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    OutlinedTextField(
+        value = selectedDate,
+        onValueChange = {},
+        label = { Text(label) },
+        leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
+        readOnly = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showDatePicker = true },
+        enabled = false,
+        colors = OutlinedTextFieldDefaults.colors(
+            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+            disabledBorderColor = MaterialTheme.colorScheme.outline,
+            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedDateMillis = datePickerState.selectedDateMillis
+                        if (selectedDateMillis != null) {
+                            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply {
+                                timeZone = java.util.TimeZone.getTimeZone("UTC")
+                            }
+                            onDateSelected(sdf.format(java.util.Date(selectedDateMillis)))
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
@@ -149,7 +221,6 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logotipo decorativo
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -273,7 +344,7 @@ fun WelcomeScreen(
                                 )
                             )
                             Text(
-                                text = "Viajes ocasionales y asistencia",
+                                text = "Viajes programados, asistencia y ocasionales",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = Color.Gray
                                 )
@@ -309,10 +380,9 @@ fun LeaderLoginScreen(
     onBack: () -> Unit,
     onLoginSuccess: (LoginResult) -> Unit
 ) {
-    var username by remember { mutableStateOf("lider") } // Pre-populado para facilidad de pruebas
-    var password by remember { mutableStateOf("123") }  // Pre-populado para facilidad de pruebas
+    var username by remember { mutableStateOf("lider") }
+    var password by remember { mutableStateOf("123") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -420,7 +490,7 @@ fun LeaderLoginScreen(
 }
 
 /**
- * Pantalla para Forzar el Cambio de Contraseña
+ * Pantalla para Cambio de Contraseña Obligatorio
  */
 @Composable
 fun LeaderChangePasswordScreen(
@@ -564,7 +634,7 @@ fun LeaderChangePasswordScreen(
 }
 
 /**
- * Dashboard del Meta Líder
+ * Dashboard de Meta Líder
  */
 @Composable
 fun LeaderDashboardScreen(
@@ -611,7 +681,7 @@ fun LeaderDashboardScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Tarjeta Registrar Viaje
+        // Tarjeta Programar Viaje
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -637,7 +707,7 @@ fun LeaderDashboardScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 Text(
-                    text = "Agende una nueva ruta, asigne pasajeros y defina su estado.",
+                    text = "Agende una ruta a Betania o San Juan y asigne participantes.",
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
                 )
             }
@@ -668,7 +738,7 @@ fun LeaderDashboardScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
                 Text(
-                    text = "Consulte el calendario de viajes. Verifique cumplimientos y estado de rutas.",
+                    text = "Consulte el calendario de rutas programadas y su cumplimiento.",
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
                 )
             }
@@ -677,19 +747,37 @@ fun LeaderDashboardScreen(
 }
 
 /**
- * Pantalla Registrar Viaje (Meta Líder)
+ * Pantalla de Registro de Viajes (Meta Líder)
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LeaderRegisterTripScreen(
     onBack: () -> Unit
 ) {
-    var route by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf("2026-07-03") } // Fecha por defecto
-    var status by remember { mutableStateOf(TripStatus.POR_CUMPLIR) }
-    var newPassengerName by remember { mutableStateOf("") }
-    val passengerList = remember { mutableStateListOf<String>() }
+    var route by remember { mutableStateOf("Sede Betania") } // Restringido
+    var date by remember { mutableStateOf("2026-07-03") }
+    
+    // Formulario de Participante
+    var nameInput by remember { mutableStateOf("") }
+    var docType by remember { mutableStateOf("Cédula de Ciudadanía") }
+    var docNumber by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var projectNumber by remember { mutableStateOf("") }
+    
+    var isExistingParticipant by remember { mutableStateOf(false) }
+    val passengerList = remember { mutableStateListOf<Participant>() }
+    
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    // Autocomplete Matches based on nameInput
+    val autocompleteSuggestions = remember(nameInput) {
+        if (nameInput.isBlank()) emptyList()
+        else TransportesRepository.globalParticipants.filter {
+            it.name.contains(nameInput, ignoreCase = true) && !passengerList.any { p -> p.docNumber == it.docNumber }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -707,8 +795,9 @@ fun LeaderRegisterTripScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Registrar Viaje",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                text = "Programar Viaje",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = PrimaryBlue
             )
         }
 
@@ -718,126 +807,278 @@ fun LeaderRegisterTripScreen(
                 .weight(1f),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Fecha y Ruta
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = route,
-                    onValueChange = {
-                        route = it
-                        errorMessage = null
-                    },
-                    label = { Text("Ruta / Destino (ej: Sumapaz a Melgar)") },
-                    leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-            }
-
-            item {
-                OutlinedTextField(
-                    value = date,
-                    onValueChange = {
-                        date = it
-                        errorMessage = null
-                    },
-                    label = { Text("Fecha (YYYY-MM-DD)") },
-                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                DateSelector(
+                    label = "Fecha de Viaje",
+                    selectedDate = date,
+                    onDateSelected = { date = it }
                 )
             }
 
             item {
                 Text(
-                    text = "Estado Inicial del Viaje:",
+                    text = "Seleccione Destino de Asistencia:",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
-
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    TripStatus.values().forEach { state ->
-                        val isSelected = status == state
-                        val color = when (state) {
-                            TripStatus.CUMPLIDO -> StatusGreen
-                            TripStatus.NO_CUMPLIDO -> StatusRed
-                            TripStatus.POR_CUMPLIR -> StatusYellow
-                        }
+                    val routes = listOf("Sede Betania", "Sede San Juan")
+                    routes.forEach { r ->
+                        val isSelected = route == r
                         Button(
-                            onClick = { status = state },
+                            onClick = { route = r },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected) color else color.copy(alpha = 0.15f),
-                                contentColor = if (isSelected) Color.White else color
+                                containerColor = if (isSelected) PrimaryBlue else Color.LightGray.copy(alpha = 0.3f),
+                                contentColor = if (isSelected) Color.White else PrimaryBlue
                             ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Text(
-                                text = state.name.replace("_", " "),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
-                                )
-                            )
+                            Text(text = r, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                         }
                     }
                 }
             }
 
+            // Sección de Agregar Pasajeros
             item {
                 Divider()
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Registrar Pasajeros para este día:",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    text = "Agregar Participante al Viaje:",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
                 )
+            }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = newPassengerName,
-                        onValueChange = { newPassengerName = it },
-                        label = { Text("Nombre del Pasajero") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (newPassengerName.isNotBlank()) {
-                                passengerList.add(newPassengerName.trim())
-                                newPassengerName = ""
-                            }
-                        },
-                        modifier = Modifier
-                            .background(PrimaryBlue, CircleShape)
-                            .size(48.dp)
+            item {
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = {
+                        nameInput = it
+                        // Si cambia el nombre, resetear autocompletado a menos que vuelva a elegir uno
+                        val matched = TransportesRepository.getParticipantByName(it)
+                        if (matched == null) {
+                            isExistingParticipant = false
+                        }
+                    },
+                    label = { Text("Nombre del Participante") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+            }
+
+            // Sugerencias de Autocompletado
+            if (autocompleteSuggestions.isNotEmpty() && !isExistingParticipant) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.2f))
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Añadir", tint = Color.White)
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Sugerencias encontradas (toca para autocompletar):",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryBlue
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            autocompleteSuggestions.take(3).forEach { participant ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            nameInput = participant.name
+                                            docType = participant.docType
+                                            docNumber = participant.docNumber
+                                            phone = participant.phone
+                                            email = participant.email
+                                            projectNumber = participant.projectNumber
+                                            isExistingParticipant = true
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = StatusGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${participant.name} (${participant.docNumber})",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
+            }
+
+            // Si es un participante nuevo, pedimos el resto de datos
+            item {
+                AnimatedVisibility(visible = nameInput.isNotBlank()) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isExistingParticipant) StatusGreen.copy(alpha = 0.05f) else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isExistingParticipant) StatusGreen.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (isExistingParticipant) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = StatusGreen)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Participante Registrado en la Base de Datos",
+                                        color = StatusGreen,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Participante nuevo. Digite los datos faltantes:",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = StatusYellow
+                                    )
+                                )
+                            }
+
+                            OutlinedTextField(
+                                value = docType,
+                                onValueChange = { if (!isExistingParticipant) docType = it },
+                                label = { Text("Tipo de Documento") },
+                                readOnly = isExistingParticipant,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = docNumber,
+                                onValueChange = { if (!isExistingParticipant) docNumber = it },
+                                label = { Text("Cédula / Documento") },
+                                readOnly = isExistingParticipant,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = phone,
+                                onValueChange = { if (!isExistingParticipant) phone = it },
+                                label = { Text("Teléfono") },
+                                readOnly = isExistingParticipant,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = email,
+                                onValueChange = { if (!isExistingParticipant) email = it },
+                                label = { Text("Correo Electrónico") },
+                                readOnly = isExistingParticipant,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            OutlinedTextField(
+                                value = projectNumber,
+                                onValueChange = { if (!isExistingParticipant) projectNumber = it },
+                                label = { Text("Número del Proyecto") },
+                                readOnly = isExistingParticipant,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Button(
+                                onClick = {
+                                    if (nameInput.isBlank() || docNumber.isBlank() || projectNumber.isBlank()) {
+                                        Toast.makeText(context, "Nombre, Cédula y Proyecto son obligatorios", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    
+                                    val participant = Participant(
+                                        name = nameInput.trim(),
+                                        docType = docType.trim(),
+                                        docNumber = docNumber.trim(),
+                                        phone = phone.trim(),
+                                        email = email.trim(),
+                                        projectNumber = projectNumber.trim()
+                                    )
+                                    
+                                    if (passengerList.any { it.docNumber == participant.docNumber }) {
+                                        Toast.makeText(context, "El participante ya está agregado al viaje", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+
+                                    // Registrar en BD global si no existe
+                                    if (!isExistingParticipant) {
+                                        TransportesRepository.registerParticipant(participant)
+                                    }
+                                    
+                                    passengerList.add(participant)
+                                    
+                                    // Limpiar inputs
+                                    nameInput = ""
+                                    docNumber = ""
+                                    phone = ""
+                                    email = ""
+                                    projectNumber = ""
+                                    isExistingParticipant = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                            ) {
+                                Text("Añadir al Viaje")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Listado de pasajeros agregados al viaje actual
+            item {
+                Text(
+                    text = "Pasajeros Agendados (${passengerList.size}):",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
             }
 
             if (passengerList.isEmpty()) {
                 item {
                     Text(
-                        text = "Sin pasajeros registrados. Añada pasajeros para este día.",
+                        text = "Ningún pasajero programado para este viaje.",
                         style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray),
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
                 }
             } else {
-                items(passengerList) { name ->
+                items(passengerList) { passenger ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -850,12 +1091,14 @@ fun LeaderRegisterTripScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = name, style = MaterialTheme.typography.bodyMedium)
+                            Column {
+                                Text(text = passenger.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                Text(
+                                    text = "Cédula: ${passenger.docNumber} • Proy: ${passenger.projectNumber}",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                )
                             }
-                            IconButton(onClick = { passengerList.remove(name) }) {
+                            IconButton(onClick = { passengerList.remove(passenger) }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = StatusRed)
                             }
                         }
@@ -875,25 +1118,20 @@ fun LeaderRegisterTripScreen(
 
         Button(
             onClick = {
-                if (route.isBlank()) {
-                    errorMessage = "Ingrese una ruta o destino"
-                    return@Button
-                }
-                if (date.isBlank() || !date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
-                    errorMessage = "Ingrese una fecha válida (YYYY-MM-DD)"
+                if (passengerList.isEmpty()) {
+                    errorMessage = "Debe agregar al menos un pasajero al viaje"
                     return@Button
                 }
                 val success = TransportesRepository.addTrip(
                     route = route,
                     date = date,
-                    status = status,
                     passengers = passengerList.toList()
                 )
                 if (success) {
-                    Toast.makeText(context, "Viaje agendado correctamente", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Viaje agendado correctamente en $route", Toast.LENGTH_SHORT).show()
                     onBack()
                 } else {
-                    errorMessage = "Error al guardar el viaje"
+                    errorMessage = "Error al agendar el viaje"
                 }
             },
             modifier = Modifier
@@ -903,21 +1141,12 @@ fun LeaderRegisterTripScreen(
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
         ) {
             Text(
-                text = "Agendar Viaje",
+                text = "Agendar e Iniciar Viaje",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
         }
     }
 }
-
-/**
- * Estructuras para la generación del Calendario
- */
-data class CalendarDay(
-    val dayNumber: Int,
-    val isCurrentMonth: Boolean,
-    val dateString: String
-)
 
 /**
  * Pantalla Viajes Agendados - Calendario (Meta Líder)
@@ -927,7 +1156,7 @@ fun LeaderCalendarScreen(
     onBack: () -> Unit
 ) {
     var calendarYear by remember { mutableStateOf(2026) }
-    var calendarMonth by remember { mutableStateOf(7) } // Julio de 2026 (Tiempo de simulación)
+    var calendarMonth by remember { mutableStateOf(7) } // Julio de 2026
     
     val monthNames = listOf(
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -937,7 +1166,6 @@ fun LeaderCalendarScreen(
     var selectedDate by remember { mutableStateOf("2026-07-03") }
     val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
     
-    // Obtener los viajes del día seleccionado
     val tripsForSelectedDay = remember(selectedDate, allTrips.value) {
         allTrips.value.filter { it.date == selectedDate }
     }
@@ -947,7 +1175,6 @@ fun LeaderCalendarScreen(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        // Cabecera
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -966,7 +1193,6 @@ fun LeaderCalendarScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Controles del Mes del Calendario
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1007,7 +1233,6 @@ fun LeaderCalendarScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Grid del Calendario
         CalendarGrid(
             year = calendarYear,
             month = calendarMonth,
@@ -1018,7 +1243,6 @@ fun LeaderCalendarScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Detalle del día seleccionado
         Text(
             text = "Detalles del día ($selectedDate):",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -1037,17 +1261,9 @@ fun LeaderCalendarScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = Color.LightGray,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Icon(Icons.Default.Info, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "No hay viajes programados en esta fecha.",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
-                    )
+                    Text(text = "No hay viajes agendados.", style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray))
                 }
             }
         } else {
@@ -1077,7 +1293,7 @@ fun LeaderCalendarScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = trip.route,
+                                    text = "Ruta: ${trip.route}",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     modifier = Modifier.weight(1f)
                                 )
@@ -1106,221 +1322,55 @@ fun LeaderCalendarScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Nombres registrados (${trip.passengerNames.size}):",
+                                text = "Pasajeros Programados (${trip.passengers.size}):",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             
-                            trip.passengerNames.forEach { name ->
-                                val attended = trip.attendance.contains(name)
-                                Row(
+                            trip.passengers.forEach { passenger ->
+                                val attendanceRecord = trip.attendanceRecords.find { it.passengerCedula == passenger.docNumber }
+                                val isConfirmed = attendanceRecord != null
+                                
+                                Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isConfirmed) StatusGreen.copy(alpha = 0.04f) else Color.Transparent
+                                    ),
+                                    border = BorderStroke(1.dp, if (isConfirmed) StatusGreen.copy(alpha = 0.15f) else Color.LightGray.copy(alpha = 0.1f))
                                 ) {
-                                    Icon(
-                                        imageVector = if (attended) Icons.Default.CheckCircle else Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = if (attended) StatusGreen else Color.Gray,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = name,
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = if (attended) StatusGreen else Color.Black,
-                                            fontWeight = if (attended) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    )
-                                    if (attended) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "(Asistencia Registrada)",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                color = StatusGreen,
-                                                fontSize = 9.sp
+                                    Column(modifier = Modifier.padding(8.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = if (isConfirmed) Icons.Default.CheckCircle else Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = if (isConfirmed) StatusGreen else Color.Gray,
+                                                modifier = Modifier.size(18.dp)
                                             )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Componente Cuadrícula de Calendario
- */
-@Composable
-fun CalendarGrid(
-    year: Int,
-    month: Int,
-    trips: List<Trip>,
-    selectedDate: String,
-    onDaySelected: (String) -> Unit
-) {
-    val daysOfWeek = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
-
-    // Calcular días
-    val daysInMonth = when (month) {
-        1 -> 31
-        2 -> if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) 29 else 28
-        3 -> 31
-        4 -> 30
-        5 -> 31
-        6 -> 30
-        7 -> 31
-        8 -> 31
-        9 -> 30
-        10 -> 31
-        11 -> 30
-        12 -> 31
-        else -> 30
-    }
-
-    val startCal = GregorianCalendar(year, month - 1, 1)
-    val dayOfWeekVal = startCal.get(Calendar.DAY_OF_WEEK)
-    // Mapear Domingo = 6, Lunes = 0, ..., Sábado = 5
-    val startDayOffset = when (dayOfWeekVal) {
-        Calendar.MONDAY -> 0
-        Calendar.TUESDAY -> 1
-        Calendar.WEDNESDAY -> 2
-        Calendar.THURSDAY -> 3
-        Calendar.FRIDAY -> 4
-        Calendar.SATURDAY -> 5
-        Calendar.SUNDAY -> 6
-        else -> 0
-    }
-
-    val calendarDays = mutableListOf<CalendarDay>()
-    
-    // Relleno mes anterior
-    for (i in 0 until startDayOffset) {
-        calendarDays.add(CalendarDay(dayNumber = 0, isCurrentMonth = false, dateString = ""))
-    }
-    
-    // Días del mes
-    for (day in 1..daysInMonth) {
-        val dateStr = String.format("%04d-%02d-%02d", year, month, day)
-        calendarDays.add(CalendarDay(dayNumber = day, isCurrentMonth = true, dateString = dateStr))
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Nombres días de la semana
-            Row(modifier = Modifier.fillMaxWidth()) {
-                daysOfWeek.forEach { day ->
-                    Text(
-                        text = day,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Filas del calendario
-            val rows = calendarDays.chunked(7)
-            rows.forEach { rowDays ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    for (i in 0..6) {
-                        if (i < rowDays.size) {
-                            val day = rowDays[i]
-                            if (day.dayNumber == 0) {
-                                Box(modifier = Modifier.weight(1f))
-                            } else {
-                                val isSelected = day.dateString == selectedDate
-                                // Buscar viajes en este día para pintar colores
-                                val tripsOnDay = trips.filter { it.date == day.dateString }
-                                
-                                // Color de fondo si hay viaje
-                                val dayBgColor = if (tripsOnDay.isNotEmpty()) {
-                                    // Si hay múltiples estados, priorizamos: POR_CUMPLIR > NO_CUMPLIR > CUMPLIDO
-                                    val hasPending = tripsOnDay.any { it.status == TripStatus.POR_CUMPLIR }
-                                    val hasFailed = tripsOnDay.any { it.status == TripStatus.NO_CUMPLIDO }
-                                    val hasSuccess = tripsOnDay.any { it.status == TripStatus.CUMPLIDO }
-
-                                    when {
-                                        hasPending -> StatusYellow.copy(alpha = 0.2f)
-                                        hasFailed -> StatusRed.copy(alpha = 0.2f)
-                                        hasSuccess -> StatusGreen.copy(alpha = 0.2f)
-                                        else -> Color.Transparent
-                                    }
-                                } else {
-                                    Color.Transparent
-                                }
-
-                                val borderColor = if (isSelected) PrimaryBlue else Color.Transparent
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .padding(2.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(dayBgColor)
-                                        .border(
-                                            if (isSelected) 2.dp else 1.dp,
-                                            if (isSelected) PrimaryBlue else Color.LightGray.copy(alpha = 0.2f),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { onDaySelected(day.dateString) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = day.dayNumber.toString(),
-                                            fontWeight = if (isSelected || tripsOnDay.isNotEmpty()) FontWeight.Bold else FontWeight.Normal,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = if (isSelected) PrimaryBlue else Color.Black
-                                        )
-
-                                        // Puntos de color para marcar visualmente el estado debajo del número
-                                        if (tripsOnDay.isNotEmpty()) {
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                tripsOnDay.take(3).forEach { trip ->
-                                                    val dotColor = when (trip.status) {
-                                                        TripStatus.CUMPLIDO -> StatusGreen
-                                                        TripStatus.NO_CUMPLIDO -> StatusRed
-                                                        TripStatus.POR_CUMPLIR -> StatusYellow
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(4.dp)
-                                                            .clip(CircleShape)
-                                                            .background(dotColor)
-                                                    )
-                                                }
-                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = passenger.name,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (isConfirmed) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isConfirmed) StatusGreen else Color.Black
+                                                )
+                                            )
+                                        }
+                                        if (isConfirmed && attendanceRecord != null) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Vehículo: ${attendanceRecord.vehicleType} (${attendanceRecord.plateNumber})\nConductor: ${attendanceRecord.driverName} • Salida: ${attendanceRecord.startTime}",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = StatusGreen,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                modifier = Modifier.padding(start = 26.dp)
+                                            )
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            Box(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -1330,14 +1380,26 @@ fun CalendarGrid(
 }
 
 /**
- * Dashboard de Usuario
+ * Pantalla de Portal del Usuario (Login y Selección de Viajes)
  */
 @Composable
 fun UserDashboardScreen(
+    onBack: () -> Unit,
     onRegisterOccasional: () -> Unit,
-    onRegisterAttendance: () -> Unit,
-    onBack: () -> Unit
+    onLoggedIn: (String) -> Unit,
+    onSelectTrip: (Trip) -> Unit
 ) {
+    var docNumberInput by remember { mutableStateOf("") }
+    var loggedParticipant by remember { mutableStateOf<Participant?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Consulta de viajes asociados al usuario logueado
+    val userTrips = remember(loggedParticipant) {
+        loggedParticipant?.let {
+            TransportesRepository.getTripsForParticipant(it.docNumber)
+        } ?: emptyList()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1349,7 +1411,14 @@ fun UserDashboardScreen(
                 .padding(top = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = {
+                if (loggedParticipant != null) {
+                    loggedParticipant = null
+                    docNumberInput = ""
+                } else {
+                    onBack()
+                }
+            }) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = PrimaryBlue)
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -1362,90 +1431,496 @@ fun UserDashboardScreen(
                     )
                 )
                 Text(
-                    text = "Servicios y Asistencias Municipales",
+                    text = "Consulte sus programaciones y confirme asistencia",
                     style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Tarjeta Registrar Viaje Ocasional
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onRegisterOccasional() }
-                .padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
-        ) {
-            Row(
+        if (loggedParticipant == null) {
+            // Pantalla de Ingreso por Cédula
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Identificación de Usuario",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = PrimaryBlue
+                    )
+
+                    OutlinedTextField(
+                        value = docNumberInput,
+                        onValueChange = {
+                            docNumberInput = it
+                            errorMessage = null
+                        },
+                        label = { Text("Ingrese su Cédula / Documento") },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+
+                    errorMessage?.let {
+                        Text(text = it, color = StatusRed, style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (docNumberInput.isBlank()) {
+                                errorMessage = "Debe digitar su número de documento"
+                                return@Button
+                            }
+                            val participant = TransportesRepository.getParticipantByCedula(docNumberInput.trim())
+                            if (participant == null) {
+                                errorMessage = "Documento no registrado en la base de datos de participantes. Consulte con el Meta Líder."
+                            } else {
+                                loggedParticipant = participant
+                                onLoggedIn(participant.docNumber)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                    ) {
+                        Text("Ingresar", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Botón de Viaje Ocasional
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clickable { onRegisterOccasional() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(PrimaryBlue.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.DateRange, contentDescription = null, tint = PrimaryBlue)
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(PrimaryBlue.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.DateRange, contentDescription = null, tint = PrimaryBlue)
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Registrar viaje ocasional",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Para traslados excepcionales fuera de programación.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                        )
+                    }
+                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.LightGray)
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
+            }
+        } else {
+            // Panel del Usuario Logueado (Muestra sus viajes)
+            val participant = loggedParticipant!!
+            
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.05f)),
+                modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.2f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Registrar viaje ocasional",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        text = "Bienvenido, ${participant.name}",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
                     )
                     Text(
-                        text = "Añadir un viaje excepcional que requiera realizar.",
+                        text = "Cédula: ${participant.docNumber} • Teléfono: ${participant.phone}",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                    )
+                    Text(
+                        text = "Proyecto: ${participant.projectNumber}",
                         style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                     )
                 }
-                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.LightGray)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Tus viajes programados:",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = PrimaryBlue
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (userTrips.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No tienes viajes programados actualmente.",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(userTrips) { trip ->
+                        val isAttended = trip.attendanceRecords.any { it.passengerCedula == participant.docNumber }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectTrip(trip) },
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isAttended) StatusGreen.copy(alpha = 0.4f) else Color.LightGray.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Asistencia: ${trip.route}",
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "Fecha: ${trip.date} • Estado: ${trip.status}",
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                    )
+                                }
+                                
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isAttended) StatusGreen.copy(alpha = 0.15f) else StatusYellow.copy(alpha = 0.15f)
+                                    )
+                                ) {
+                                    Text(
+                                        text = if (isAttended) "Asistencia OK" else "Pendiente",
+                                        color = if (isAttended) StatusGreen else StatusYellow,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Pantalla de Detalles de Viaje del Usuario (Apertura, Asistencia de Compañeros, y Cierre)
+ */
+@Composable
+fun UserTripDetailsScreen(
+    trip: Trip?,
+    loggedCedula: String,
+    onBack: () -> Unit
+) {
+    if (trip == null) {
+        onBack()
+        return
+    }
+
+    var driverName by remember { mutableStateOf("") }
+    var plateNumber by remember { mutableStateOf("") }
+    var startTime by remember { mutableStateOf("") }
+    var vehicleType by remember { mutableStateOf("") }
+
+    val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
+    val refreshedTrip = remember(allTrips.value, trip.id) {
+        allTrips.value.find { it.id == trip.id } ?: trip
+    }
+
+    // Inicializar inputs si ya el conductor se guardó previamente en alguna asistencia de este usuario
+    LaunchedEffect(refreshedTrip.attendanceRecords) {
+        val myRecord = refreshedTrip.attendanceRecords.find { it.passengerCedula == loggedCedula }
+        if (myRecord != null) {
+            driverName = myRecord.driverName
+            plateNumber = myRecord.plateNumber
+            startTime = myRecord.startTime
+            vehicleType = myRecord.vehicleType
+        }
+    }
+
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = refreshedTrip.route,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = PrimaryBlue
+                )
+                Text(
+                    text = "Viaje programado: ${refreshedTrip.date}",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                )
             }
         }
 
-        // Tarjeta Registrar Asistencia Alcaldía
-        Card(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onRegisterAttendance() },
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(StatusGreen.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+            // Formulario de apertura de viaje (Datos del vehículo)
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.15f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = StatusGreen)
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Datos del Transporte (Apertura)",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
+                        )
+                        Text(
+                            text = "Registre los detalles de salida del vehículo. Estos se asociarán a las asistencias que confirme.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                        )
+
+                        OutlinedTextField(
+                            value = driverName,
+                            onValueChange = { driverName = it },
+                            label = { Text("Nombre del Conductor") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = plateNumber,
+                            onValueChange = { plateNumber = it },
+                            label = { Text("Placa del Vehículo") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedTextField(
+                                value = startTime,
+                                onValueChange = { startTime = it },
+                                label = { Text("Hora de Inicio") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = vehicleType,
+                                onValueChange = { vehicleType = it },
+                                label = { Text("Tipo Vehículo") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                singleLine = true
+                            )
+                        }
+                    }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Registrar asistencia alcaldía",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            }
+
+            // Listado de compañeros del mismo viaje
+            item {
+                Text(
+                    text = "Asistencia de Participantes del Viaje:",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryBlue
+                )
+            }
+
+            items(refreshedTrip.passengers) { passenger ->
+                val passengerRecord = refreshedTrip.attendanceRecords.find { it.passengerCedula == passenger.docNumber }
+                val isAttended = passengerRecord != null
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isAttended) StatusGreen.copy(alpha = 0.05f) else Color.White
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isAttended) StatusGreen.copy(alpha = 0.2f) else Color.LightGray.copy(alpha = 0.5f)
                     )
-                    Text(
-                        text = "Busque su nombre registrado por el líder y confirme su asistencia.",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                val suffix = if (passenger.docNumber == loggedCedula) " (Yo)" else ""
+                                Text(
+                                    text = passenger.name + suffix,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Text(
+                                    text = "Proyecto: ${passenger.projectNumber} • Cédula: ${passenger.docNumber}",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                )
+                            }
+
+                            if (isAttended) {
+                                IconButton(
+                                    onClick = {
+                                        TransportesRepository.removeAttendance(refreshedTrip.id, passenger.docNumber)
+                                        Toast.makeText(context, "Asistencia removida para ${passenger.name}", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = "Remover", tint = StatusGreen)
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        if (driverName.isBlank() || plateNumber.isBlank() || startTime.isBlank() || vehicleType.isBlank()) {
+                                            Toast.makeText(context, "Debe registrar primero los 4 datos del transporte para abrir el viaje", Toast.LENGTH_LONG).show()
+                                            return@Button
+                                        }
+                                        val success = TransportesRepository.confirmAttendance(
+                                            tripId = refreshedTrip.id,
+                                            passengerCedula = passenger.docNumber,
+                                            driverName = driverName.trim(),
+                                            plateNumber = plateNumber.trim().toUpperCase(),
+                                            startTime = startTime.trim(),
+                                            vehicleType = vehicleType.trim()
+                                        )
+                                        if (success) {
+                                            Toast.makeText(context, "Confirmado en vehículo $plateNumber", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text("Confirmar", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+                        }
+
+                        if (isAttended && passengerRecord != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Divider()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Transporte Asociado:\nPlaca: ${passengerRecord.plateNumber} • Conductor: ${passengerRecord.driverName}\nHora: ${passengerRecord.startTime} • Vehículo: ${passengerRecord.vehicleType}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = StatusGreen,
+                                    lineHeight = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
                 }
-                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.LightGray)
+            }
+
+            // Sección de Cierre del Viaje
+            item {
+                Divider()
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.03f)),
+                    border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Cerrar Viaje",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = PrimaryBlue
+                        )
+                        Text(
+                            text = "Actualice el estado final del viaje a completado o no cumplido. Esto finalizará el viaje en el calendario.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.CUMPLIDO)
+                                    Toast.makeText(context, "Viaje Cerrado como CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+
+                            Button(
+                                onClick = {
+                                    TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.NO_CUMPLIDO)
+                                    Toast.makeText(context, "Viaje Cerrado como NO CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = StatusRed),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("No Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1503,17 +1978,10 @@ fun UserRegisterOccasionalTripScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = date,
-            onValueChange = {
-                date = it
-                errorMessage = null
-            },
-            label = { Text("Fecha (YYYY-MM-DD)") },
-            leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
+        DateSelector(
+            label = "Fecha de Viaje",
+            selectedDate = date,
+            onDateSelected = { date = it }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1559,15 +2027,11 @@ fun UserRegisterOccasionalTripScreen(
                     errorMessage = "Por favor complete todos los campos"
                     return@Button
                 }
-                if (!date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
-                    errorMessage = "Ingrese una fecha válida (YYYY-MM-DD)"
-                    return@Button
-                }
                 val success = TransportesRepository.addOccasionalTrip(
-                    passengerName = passengerName,
+                    passengerName = passengerName.trim(),
                     date = date,
-                    origin = origin,
-                    destination = destination
+                    origin = origin.trim(),
+                    destination = destination.trim()
                 )
                 if (success) {
                     Toast.makeText(context, "Viaje ocasional registrado con éxito", Toast.LENGTH_LONG).show()
@@ -1591,302 +2055,162 @@ fun UserRegisterOccasionalTripScreen(
 }
 
 /**
- * Pantalla Registrar Asistencia Alcaldía (Usuario)
+ * Componente Cuadrícula de Calendario
  */
 @Composable
-fun UserRegisterAttendanceScreen(
-    onBack: () -> Unit
+fun CalendarGrid(
+    year: Int,
+    month: Int,
+    trips: List<Trip>,
+    selectedDate: String,
+    onDaySelected: (String) -> Unit
 ) {
-    var searchDate by remember { mutableStateOf("2026-07-03") }
-    var showResults by remember { mutableStateOf(false) }
-    var selectedTrip by remember { mutableStateOf<Trip?>(null) }
-    
-    val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
-    
-    // Obtener la lista de viajes para la fecha buscada
-    val tripsForDate = remember(searchDate, allTrips.value) {
-        allTrips.value.filter { it.date == searchDate }
+    val daysOfWeek = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+
+    val daysInMonth = when (month) {
+        1 -> 31
+        2 -> if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) 29 else 28
+        3 -> 31
+        4 -> 30
+        5 -> 31
+        6 -> 30
+        7 -> 31
+        8 -> 31
+        9 -> 30
+        10 -> 31
+        11 -> 30
+        12 -> 31
+        else -> 30
     }
 
-    val context = LocalContext.current
+    val startCal = GregorianCalendar(year, month - 1, 1)
+    val dayOfWeekVal = startCal.get(Calendar.DAY_OF_WEEK)
+    val startDayOffset = when (dayOfWeekVal) {
+        Calendar.MONDAY -> 0
+        Calendar.TUESDAY -> 1
+        Calendar.WEDNESDAY -> 2
+        Calendar.THURSDAY -> 3
+        Calendar.FRIDAY -> 4
+        Calendar.SATURDAY -> 5
+        Calendar.SUNDAY -> 6
+        else -> 0
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
+    val calendarDays = mutableListOf<CalendarDay>()
+    for (i in 0 until startDayOffset) {
+        calendarDays.add(CalendarDay(dayNumber = 0, isCurrentMonth = false, dateString = ""))
+    }
+    for (day in 1..daysInMonth) {
+        val dateStr = String.format("%04d-%02d-%02d", year, month, day)
+        calendarDays.add(CalendarDay(dayNumber = day, isCurrentMonth = true, dateString = dateStr))
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                daysOfWeek.forEach { day ->
+                    Text(
+                        text = day,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Asistencia Alcaldía",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-            )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Campo de fecha para buscar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchDate,
-                onValueChange = {
-                    searchDate = it
-                    showResults = false
-                    selectedTrip = null
-                },
-                label = { Text("Fecha (YYYY-MM-DD)") },
-                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = null) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Button(
-                onClick = { showResults = true },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                modifier = Modifier.height(54.dp)
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "Buscar")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        if (showResults) {
-            if (tripsForDate.isEmpty()) {
-                Box(
+            val rows = calendarDays.chunked(7)
+            rows.forEach { rowDays ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .background(Color.White, RoundedCornerShape(12.dp))
-                        .border(1.dp, Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = StatusYellow, modifier = Modifier.size(48.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No se encontraron viajes registrados por el Meta Líder para la fecha seleccionada ($searchDate).",
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
-                        )
-                    }
-                }
-            } else {
-                Text(
-                    text = "Seleccione el viaje programado:",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = PrimaryBlue
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
+                    for (i in 0..6) {
+                        if (i < rowDays.size) {
+                            val day = rowDays[i]
+                            if (day.dayNumber == 0) {
+                                Box(modifier = Modifier.weight(1f))
+                            } else {
+                                val isSelected = day.dateString == selectedDate
+                                val tripsOnDay = trips.filter { it.date == day.dateString }
+                                
+                                val dayBgColor = if (tripsOnDay.isNotEmpty()) {
+                                    val hasPending = tripsOnDay.any { it.status == TripStatus.POR_CUMPLIR }
+                                    val hasFailed = tripsOnDay.any { it.status == TripStatus.NO_CUMPLIDO }
+                                    val hasSuccess = tripsOnDay.any { it.status == TripStatus.CUMPLIDO }
 
-                // Si no hay viaje seleccionado, mostramos la lista de viajes de ese día
-                if (selectedTrip == null) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(tripsForDate) { trip ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedTrip = trip },
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = trip.route,
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                        Text(
-                                            text = "${trip.passengerNames.size} nombres registrados para hoy",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                                        )
+                                    when {
+                                        hasPending -> StatusYellow.copy(alpha = 0.2f)
+                                        hasFailed -> StatusRed.copy(alpha = 0.2f)
+                                        hasSuccess -> StatusGreen.copy(alpha = 0.2f)
+                                        else -> Color.Transparent
                                     }
-                                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = PrimaryBlue)
+                                } else {
+                                    Color.Transparent
                                 }
-                            }
-                        }
-                    }
-                } else {
-                    // Viaje seleccionado: mostrar lista de nombres programados por el Meta Líder
-                    val trip = selectedTrip!!
-                    // Actualizar el estado del viaje refrescando del repositorio
-                    val refreshedTrip = allTrips.value.find { it.id == trip.id } ?: trip
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = refreshedTrip.route,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Text(
-                                    text = "Confirme su asistencia seleccionando su nombre",
-                                    style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                                )
-                            }
-                            TextButton(onClick = { selectedTrip = null }) {
-                                Text("Cambiar viaje")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Listado de Nombres Programados:",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (refreshedTrip.passengerNames.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "El Meta Líder no registró pasajeros específicos para este viaje.",
-                                style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(refreshedTrip.passengerNames) { name ->
-                                val isAttended = refreshedTrip.attendance.contains(name)
-                                Card(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable(!isAttended) {
-                                            val success = TransportesRepository.registerAttendance(refreshedTrip.id, name)
-                                            if (success) {
-                                                Toast.makeText(context, "Asistencia registrada para $name", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isAttended) StatusGreen.copy(alpha = 0.08f) else Color.White
-                                    ),
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isAttended) StatusGreen.copy(alpha = 0.3f) else Color.LightGray.copy(alpha = 0.5f)
-                                    )
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .padding(2.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(dayBgColor)
+                                        .border(
+                                            if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) PrimaryBlue else Color.LightGray.copy(alpha = 0.2f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { onDaySelected(day.dateString) },
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
                                     ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = if (isAttended) Icons.Default.CheckCircle else Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = if (isAttended) StatusGreen else PrimaryBlue
-                                            )
-                                            Spacer(modifier = Modifier.width(16.dp))
-                                            Text(
-                                                text = name,
-                                                style = MaterialTheme.typography.bodyLarge.copy(
-                                                    fontWeight = if (isAttended) FontWeight.Bold else FontWeight.Normal
-                                                )
-                                            )
-                                        }
+                                        Text(
+                                            text = day.dayNumber.toString(),
+                                            fontWeight = if (isSelected || tripsOnDay.isNotEmpty()) FontWeight.Bold else FontWeight.Normal,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (isSelected) PrimaryBlue else Color.Black
+                                        )
 
-                                        if (isAttended) {
-                                            Card(
-                                                colors = CardDefaults.cardColors(containerColor = StatusGreen.copy(alpha = 0.15f))
+                                        if (tripsOnDay.isNotEmpty()) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = "Confirmado",
-                                                    color = StatusGreen,
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                                )
-                                            }
-                                        } else {
-                                            Button(
-                                                onClick = {
-                                                    val success = TransportesRepository.registerAttendance(refreshedTrip.id, name)
-                                                    if (success) {
-                                                        Toast.makeText(context, "Asistencia registrada para $name", Toast.LENGTH_SHORT).show()
+                                                tripsOnDay.take(3).forEach { trip ->
+                                                    val dotColor = when (trip.status) {
+                                                        TripStatus.CUMPLIDO -> StatusGreen
+                                                        TripStatus.NO_CUMPLIDO -> StatusRed
+                                                        TripStatus.POR_CUMPLIR -> StatusYellow
                                                     }
-                                                },
-                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                Text("Confirmar", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(4.dp)
+                                                            .clip(CircleShape)
+                                                            .background(dotColor)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                        } else {
+                            Box(modifier = Modifier.weight(1f))
                         }
                     }
-                }
-            }
-        } else {
-            // Estado inicial antes de hacer click en buscar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(64.dp))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Ingrese la fecha del viaje para consultar los nombres registrados.",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
                 }
             }
         }

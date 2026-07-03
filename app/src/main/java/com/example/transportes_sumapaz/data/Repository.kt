@@ -2,11 +2,7 @@ package com.example.transportes_sumapaz.data
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshots.SnapshotStateList
 
-/**
- * Estados de cumplimiento del viaje.
- */
 enum class TripStatus {
     CUMPLIDO,      // Verde
     NO_CUMPLIDO,   // Rojo
@@ -14,24 +10,47 @@ enum class TripStatus {
 }
 
 /**
- * Modelo que representa un Viaje agendado por el Meta Líder.
+ * Modelo para un Participante / Usuario de la comunidad de Sumapaz.
  */
-data class Trip(
-    val id: String,
-    val date: String,             // Formato "YYYY-MM-DD"
-    val route: String,            // Destino / Ruta del viaje
-    val status: TripStatus,       // Estado actual
-    val passengerNames: List<String>, // Nombres de pasajeros registrados por el líder para este día
-    val attendance: List<String> = emptyList() // Nombres de personas que confirmaron asistencia
+data class Participant(
+    val name: String,
+    val docType: String,
+    val docNumber: String,      // Cédula (Llave primaria/ID único)
+    val phone: String,
+    val email: String,
+    val projectNumber: String
 )
 
 /**
- * Modelo que representa un Viaje Ocasional registrado por un usuario.
+ * Registro de asistencia que asocia a un pasajero con los datos del vehículo en el que viaja.
+ */
+data class AttendanceRecord(
+    val passengerCedula: String,
+    val driverName: String,
+    val plateNumber: String,
+    val startTime: String,
+    val vehicleType: String
+)
+
+/**
+ * Viaje programado por el Meta Líder.
+ */
+data class Trip(
+    val id: String,
+    val date: String,                   // Formato "YYYY-MM-DD"
+    val route: String,                  // "Sede Betania" o "Sede San Juan"
+    var status: TripStatus,             // CUMPLIDO, NO_CUMPLIDO, POR_CUMPLIR
+    val passengers: List<Participant>,  // Pasajeros programados por el líder
+    val attendanceRecords: MutableList<AttendanceRecord> = mutableStateListOf() // Asistencias confirmadas con datos de vehículo
+)
+
+/**
+ * Viaje Ocasional registrado por un usuario.
  */
 data class OccasionalTrip(
     val id: String,
     val passengerName: String,
-    val date: String,             // Formato "YYYY-MM-DD"
+    val date: String,
     val origin: String,
     val destination: String
 )
@@ -42,192 +61,86 @@ data class OccasionalTrip(
 data class LeaderAccount(
     val username: String,
     var name: String,
-    var passwordHash: String,     // En producción se debe usar hashing (ej. bcrypt / SHA-256)
+    var passwordHash: String,
     var mustChangePassword: Boolean
 )
 
 /**
- * Interfaz que define las operaciones de datos para el aplicativo.
- * Esta abstracción permite que en el futuro se pueda implementar una clase
- * que se conecte directamente a una base de datos local (Room) o remota (Retrofit/Firebase)
- * simplemente heredando de esta interfaz sin necesidad de alterar la UI.
+ * Repositorio global de la aplicación.
+ * Sostiene las listas globales de participantes, viajes y sesiones.
  */
-interface TransportesDataSource {
-    // Autenticación de Meta Líder
-    fun getLeaderAccount(username: String): LeaderAccount?
-    fun updateLeaderPassword(username: String, newPasswordHash: String): Boolean
+object TransportesRepository {
 
-    // Gestión de Viajes
-    fun getTrips(): List<Trip>
-    fun addTrip(trip: Trip): Boolean
-    fun registerAttendance(tripId: String, name: String): Boolean
-
-    // Gestión de Viajes Ocasionales
-    fun getOccasionalTrips(): List<OccasionalTrip>
-    fun addOccasionalTrip(trip: OccasionalTrip): Boolean
-}
-
-/**
- * Implementación de origen de datos en memoria para propósitos de prueba y demostración.
- * Contiene comentarios marcando dónde se deben integrar las llamadas a la Base de Datos.
- */
-class InMemoryDataSource : TransportesDataSource {
-
+    // Cuentas de Meta Líderes
     private val leaders = mutableMapOf(
         "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = true),
         "admin" to LeaderAccount("admin", "Admin Sumapaz", "admin123", mustChangePassword = true)
     )
 
-    private val trips = mutableStateListOf<Trip>(
-        Trip(
-            id = "1",
-            date = "2026-07-01",
-            route = "Sumapaz a Bogotá (Centro)",
-            status = TripStatus.CUMPLIDO,
-            passengerNames = listOf("Juan Pérez", "María Rodríguez", "Pedro Gómez", "Sofía Cruz"),
-            attendance = listOf("Juan Pérez", "María Rodríguez", "Pedro Gómez")
-        ),
-        Trip(
-            id = "2",
-            date = "2026-07-02",
-            route = "Sumapaz a Cabrera",
-            status = TripStatus.NO_CUMPLIDO,
-            passengerNames = listOf("Laura Beltrán", "Esteban Rojas", "Ana Vega"),
-            attendance = emptyList()
-        ),
-        Trip(
-            id = "3",
-            date = "2026-07-03", // Hoy
-            route = "Sumapaz a Fusagasugá",
-            status = TripStatus.POR_CUMPLIR,
-            passengerNames = listOf("Luis Delgado", "Liliana Rincón", "Jorge Ortiz", "Diana Pinzón"),
-            attendance = listOf("Luis Delgado")
-        ),
-        Trip(
-            id = "4",
-            date = "2026-07-05", // Futuro
-            route = "Sumapaz a Bogotá (Norte)",
-            status = TripStatus.POR_CUMPLIR,
-            passengerNames = listOf("Carlos Mendieta", "Marta Castillo", "Andrés Felipe"),
-            attendance = emptyList()
-        ),
-        Trip(
-            id = "5",
-            date = "2026-07-10", // Futuro
-            route = "Sumapaz a Melgar",
-            status = TripStatus.POR_CUMPLIR,
-            passengerNames = listOf("Patricia Torres", "Diego Niño", "Juliana Silva"),
-            attendance = emptyList()
-        )
+    // Base de datos global de Participantes para autocompletado
+    val globalParticipants = mutableStateListOf<Participant>(
+        Participant("Juan Pérez", "Cédula de Ciudadanía", "1010", "3111234567", "juan@mail.com", "PROJ-101"),
+        Participant("María Rodríguez", "Cédula de Ciudadanía", "2020", "3127654321", "maria@mail.com", "PROJ-101"),
+        Participant("Pedro Gómez", "Cédula de Ciudadanía", "3030", "3139876543", "pedro@mail.com", "PROJ-102"),
+        Participant("Ana Vega", "Cédula de Ciudadanía", "4040", "Cédula de Ciudadanía", "ana@mail.com", "PROJ-103")
     )
 
-    private val occasionalTrips = mutableStateListOf<OccasionalTrip>(
-        OccasionalTrip(
-            id = "1",
-            passengerName = "Miguel Ángel",
-            date = "2026-07-03",
-            origin = "Vereda Las Sopas",
-            destination = "Alcaldía Local"
-        )
-    )
+    // Lista global de viajes programados
+    private val trips = mutableStateListOf<Trip>()
 
-    override fun getLeaderAccount(username: String): LeaderAccount? {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * En el futuro, aquí se consultaría la base de datos SQL local o remota.
-         * Ejemplo Room:
-         * return leaderDao.findByUsername(username)
-         */
-        return leaders[username]
-    }
-
-    override fun updateLeaderPassword(username: String, newPasswordHash: String): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Aquí se ejecutaría una consulta UPDATE en la base de datos.
-         * Ejemplo Room:
-         * leaderDao.updatePassword(username, newPasswordHash, false)
-         */
-        val leader = leaders[username] ?: return false
-        leaders[username] = leader.copy(passwordHash = newPasswordHash, mustChangePassword = false)
-        return true
-    }
-
-    override fun getTrips(): List<Trip> {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Retornar la lista completa de viajes programados.
-         * Ejemplo Room:
-         * return tripDao.getAllTrips()
-         */
-        return trips
-    }
-
-    override fun addTrip(trip: Trip): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Guardar un nuevo viaje en la base de datos.
-         * Ejemplo Room:
-         * tripDao.insertTrip(trip)
-         */
-        trips.add(trip)
-        return true
-    }
-
-    override fun registerAttendance(tripId: String, name: String): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Actualizar la lista de asistencia en el viaje correspondiente.
-         * Ejemplo Room/API:
-         * tripDao.addPassengerAttendance(tripId, name)
-         */
-        val index = trips.indexOfFirst { it.id == tripId }
-        if (index != -1) {
-            val trip = trips[index]
-            if (!trip.attendance.contains(name)) {
-                val updatedAttendance = trip.attendance + name
-                trips[index] = trip.copy(attendance = updatedAttendance)
-                return true
-            }
-        }
-        return false
-    }
-
-    override fun getOccasionalTrips(): List<OccasionalTrip> {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Consultar viajes ocasionales de la BD.
-         */
-        return occasionalTrips
-    }
-
-    override fun addOccasionalTrip(trip: OccasionalTrip): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * Guardar viaje ocasional.
-         */
-        occasionalTrips.add(trip)
-        return true
-    }
-}
-
-/**
- * Repositorio global de la aplicación.
- * Actúa como punto único de acceso a los datos de la UI.
- * Para conectar una base de datos real en el futuro, solo se debe cambiar
- * la instancia de `dataSource` de `InMemoryDataSource` a una nueva clase
- * (por ejemplo, `RoomDataSource` o `RemoteApiDataSource`).
- */
-object TransportesRepository {
-    
-    // Cambiar esta inicialización para conectar a base de datos en el futuro
-    private val dataSource: TransportesDataSource = InMemoryDataSource()
+    // Lista global de viajes ocasionales
+    private val occasionalTrips = mutableStateListOf<OccasionalTrip>()
 
     // Sesión activa del líder autenticado
     var loggedLeader = mutableStateOf<LeaderAccount?>(null)
 
+    // Inicialización de datos de prueba
+    init {
+        // Viaje a Sede Betania para Hoy (2026-07-03)
+        trips.add(
+            Trip(
+                id = "trip-betania-today",
+                date = "2026-07-03",
+                route = "Sede Betania",
+                status = TripStatus.POR_CUMPLIR,
+                passengers = listOf(
+                    globalParticipants[0], // Juan Pérez (1010)
+                    globalParticipants[1]  // María Rodríguez (2020)
+                )
+            )
+        )
+
+        // Viaje a Sede San Juan para Hoy (2026-07-03)
+        trips.add(
+            Trip(
+                id = "trip-sanjuan-today",
+                date = "2026-07-03",
+                route = "Sede San Juan",
+                status = TripStatus.POR_CUMPLIR,
+                passengers = listOf(
+                    globalParticipants[2], // Pedro Gómez (3030)
+                    globalParticipants[3]  // Ana Vega (4040)
+                )
+            )
+        )
+
+        // Viaje pasado ya Cumplido (2026-07-01)
+        val tripPast = Trip(
+            id = "trip-past",
+            date = "2026-07-01",
+            route = "Sede Betania",
+            status = TripStatus.CUMPLIDO,
+            passengers = listOf(globalParticipants[0])
+        )
+        tripPast.attendanceRecords.add(
+            AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30 AM", "Microbús")
+        )
+        trips.add(tripPast)
+    }
+
+    // --- Autenticación Meta Líder ---
     fun loginLeader(username: String, passwordPlain: String): LoginResult {
-        val account = dataSource.getLeaderAccount(username) ?: return LoginResult.USER_NOT_FOUND
+        val account = leaders[username] ?: return LoginResult.USER_NOT_FOUND
         if (account.passwordHash != passwordPlain) {
             return LoginResult.WRONG_PASSWORD
         }
@@ -240,62 +153,146 @@ object TransportesRepository {
     }
 
     fun changeLeaderPassword(username: String, newPasswordPlain: String): Boolean {
-        val success = dataSource.updateLeaderPassword(username, newPasswordPlain)
-        if (success) {
-            // Actualizar sesión activa
-            val updatedAccount = dataSource.getLeaderAccount(username)
-            loggedLeader.value = updatedAccount
-        }
-        return success
+        val leader = leaders[username] ?: return false
+        leaders[username] = leader.copy(passwordHash = newPasswordPlain, mustChangePassword = false)
+        loggedLeader.value = leaders[username]
+        return true
     }
 
     fun logout() {
         loggedLeader.value = null
     }
 
+    // --- Gestión de Participantes ---
+    fun getParticipantByCedula(cedula: String): Participant? {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * select * from participants where docNumber = :cedula
+         */
+        return globalParticipants.find { it.docNumber == cedula }
+    }
+
+    fun getParticipantByName(name: String): Participant? {
+        return globalParticipants.find { it.name.equals(name, ignoreCase = true) }
+    }
+
+    fun registerParticipant(participant: Participant) {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * insert into participants values (...)
+         */
+        if (globalParticipants.none { it.docNumber == participant.docNumber }) {
+            globalParticipants.add(participant)
+        }
+    }
+
+    // --- Gestión de Viajes ---
     fun getTrips(): List<Trip> {
-        return dataSource.getTrips()
+        return trips
     }
 
-    fun getTripsForDate(date: String): List<Trip> {
-        return dataSource.getTrips().filter { it.date == date }
-    }
-
-    fun addTrip(route: String, date: String, status: TripStatus, passengers: List<String>): Boolean {
+    fun addTrip(route: String, date: String, passengers: List<Participant>): Boolean {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * insert into trips ...
+         * insert into trip_passengers ...
+         */
         val newTrip = Trip(
             id = java.util.UUID.randomUUID().toString(),
             date = date,
             route = route,
-            status = status,
-            passengerNames = passengers.filter { it.isNotBlank() },
-            attendance = emptyList()
+            status = TripStatus.POR_CUMPLIR,
+            passengers = passengers
         )
-        return dataSource.addTrip(newTrip)
+        trips.add(newTrip)
+        return true
     }
 
-    fun registerAttendance(tripId: String, name: String): Boolean {
-        return dataSource.registerAttendance(tripId, name)
+    fun getTripsForParticipant(cedula: String, date: String = ""): List<Trip> {
+        return trips.filter { trip ->
+            val isPassenger = trip.passengers.any { it.docNumber == cedula }
+            val matchesDate = date.isEmpty() || trip.date == date
+            isPassenger && matchesDate
+        }
     }
 
+    /**
+     * Confirma la asistencia de un pasajero en un viaje específico,
+     * asociándole los datos de vehículo de la sesión del usuario que confirma.
+     */
+    fun confirmAttendance(
+        tripId: String,
+        passengerCedula: String,
+        driverName: String,
+        plateNumber: String,
+        startTime: String,
+        vehicleType: String
+    ): Boolean {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * insert or replace into trip_attendance values (:tripId, :passengerCedula, :driver, :plate, ...)
+         */
+        val trip = trips.find { it.id == tripId } ?: return false
+        // Remover si ya existe un registro previo
+        trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
+        
+        // Agregar el nuevo registro con los datos del vehículo
+        trip.attendanceRecords.add(
+            AttendanceRecord(
+                passengerCedula = passengerCedula,
+                driverName = driverName,
+                plateNumber = plateNumber,
+                startTime = startTime,
+                vehicleType = vehicleType
+            )
+        )
+        return true
+    }
+
+    /**
+     * Remueve la confirmación de asistencia de un pasajero.
+     */
+    fun removeAttendance(tripId: String, passengerCedula: String): Boolean {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * delete from trip_attendance where trip_id = :tripId and passenger_cedula = :passengerCedula
+         */
+        val trip = trips.find { it.id == tripId } ?: return false
+        trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
+        return true
+    }
+
+    /**
+     * Cierra un viaje cambiando su estado final.
+     */
+    fun closeTrip(tripId: String, status: TripStatus): Boolean {
+        /*
+         * HOOK DE BASE DE DATOS:
+         * update trips set status = :status where id = :tripId
+         */
+        val index = trips.indexOfFirst { it.id == tripId }
+        if (index != -1) {
+            val trip = trips[index]
+            trips[index] = trip.copy(status = status)
+            return true
+        }
+        return false
+    }
+
+    // --- Viajes Ocasionales ---
     fun getOccasionalTrips(): List<OccasionalTrip> {
-        return dataSource.getOccasionalTrips()
+        return occasionalTrips
     }
 
     fun addOccasionalTrip(passengerName: String, date: String, origin: String, destination: String): Boolean {
-        val newOccasional = OccasionalTrip(
+        val newTrip = OccasionalTrip(
             id = java.util.UUID.randomUUID().toString(),
             passengerName = passengerName,
             date = date,
             origin = origin,
             destination = destination
         )
-        return dataSource.addOccasionalTrip(newOccasional)
+        occasionalTrips.add(newTrip)
+        return true
     }
-}
-
-enum class LoginResult {
-    SUCCESS,
-    MUST_CHANGE_PASSWORD,
-    USER_NOT_FOUND,
-    WRONG_PASSWORD
 }
