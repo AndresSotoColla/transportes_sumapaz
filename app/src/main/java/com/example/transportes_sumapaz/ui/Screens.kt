@@ -62,7 +62,7 @@ val LightBackground = Color(0xFFF1F5F9)  // Fondo Gris Azulado Suave (Slate 100)
 
 val StatusGreen = Color(0xFF10B981)      // Emerald (Verde Moderno)
 val StatusRed = Color(0xFFEF4444)        // Rose Red (Rojo Moderno)
-val StatusYellow = Color(0xFFF59E0B)     // Iniciado (Amber Amarillo/Naranja)
+val StatusYellow = Color(0xFFF59E0B)     // Amber Amarillo/Naranja (Iniciado)
 val StatusScheduled = Color(0xFF94A3B8)  // Programado (Slate Gris)
 
 /**
@@ -1300,8 +1300,9 @@ fun LeaderRegisterTripScreen(
 }
 
 /**
- * Pantalla Viajes Agendados - Calendario (Meta Líder)
+ * Pantalla Viajes Agendados - Calendario y Manifiesto Detallado (Meta Líder)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaderCalendarScreen(
     onBack: () -> Unit
@@ -1320,6 +1321,8 @@ fun LeaderCalendarScreen(
     val tripsForSelectedDay = remember(selectedDate, allTrips.value) {
         allTrips.value.filter { it.date == selectedDate }
     }
+    
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -1424,9 +1427,11 @@ fun LeaderCalendarScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(tripsForSelectedDay) { trip ->
+                    val isManifestLocked = trip.attendanceRecords.isNotEmpty()
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -1441,6 +1446,7 @@ fun LeaderCalendarScreen(
                         )
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
+                            // Encabezado de Ruta y Estado Global
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1476,55 +1482,261 @@ fun LeaderCalendarScreen(
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Banner sobre la edición del manifiesto
+                            if (isManifestLocked) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = StatusYellow.copy(alpha = 0.05f)),
+                                    border = BorderStroke(1.dp, StatusYellow.copy(alpha = 0.2f)),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Lock, contentDescription = null, tint = StatusYellow, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Manifiesto cerrado: El viaje ya ha sido iniciado por uno o más pasajeros.",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                                            color = StatusYellow
+                                        )
+                                    }
+                                }
+                            } else {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = StatusGreen.copy(alpha = 0.05f)),
+                                    border = BorderStroke(1.dp, StatusGreen.copy(alpha = 0.2f)),
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Edit, contentDescription = null, tint = StatusGreen, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Manifiesto abierto: Puede añadir o quitar personas.",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                                            color = StatusGreen
+                                        )
+                                    }
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(12.dp))
 
+                            // --- CATEGORÍA 1: NO INICIADOS / PENDIENTES ---
+                            val pendingPassengers = trip.passengers.filter { p ->
+                                trip.attendanceRecords.none { it.passengerCedula == p.docNumber }
+                            }
                             Text(
-                                text = "Pasajeros Programados (${trip.passengers.size}):",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color.Black
+                                text = "1. No Iniciados / Pendientes (${pendingPassengers.size}):",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.Black,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
-                            
-                            trip.passengers.forEach { passenger ->
-                                val attendanceRecord = trip.attendanceRecords.find { it.passengerCedula == passenger.docNumber }
-                                val isConfirmed = attendanceRecord != null
-                                
+                            pendingPassengers.forEach { passenger ->
                                 Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isConfirmed) StatusGreen.copy(alpha = 0.04f) else Color.Transparent
-                                    ),
-                                    border = BorderStroke(1.dp, if (isConfirmed) StatusGreen.copy(alpha = 0.15f) else Color.LightGray.copy(alpha = 0.1f))
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
                                 ) {
-                                    Column(modifier = Modifier.padding(8.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = if (isConfirmed) Icons.Default.CheckCircle else Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = if (isConfirmed) StatusGreen else Color.Gray,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = passenger.name,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = if (isConfirmed) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isConfirmed) StatusGreen else Color.Black
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(text = passenger.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.Black)
+                                            Text(text = "Cédula: ${passenger.docNumber} • Proy: ${passenger.projectNumber}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                        }
+
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            // El líder puede forzar el inicio
+                                            IconButton(onClick = {
+                                                TransportesRepository.updateAttendanceStatus(trip.id, passenger.docNumber, TripStatus.INICIADO)
+                                                Toast.makeText(context, "Estado de ${passenger.name} forzado a INICIADO", Toast.LENGTH_SHORT).show()
+                                            }) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = "Forzar Inicio", tint = StatusYellow)
+                                            }
+                                            // O sacar de viaje (si no está bloqueado)
+                                            if (!isManifestLocked) {
+                                                IconButton(onClick = {
+                                                    TransportesRepository.removePassengerFromTrip(trip.id, passenger.docNumber)
+                                                    Toast.makeText(context, "Removido del manifiesto", Toast.LENGTH_SHORT).show()
+                                                }) {
+                                                    Icon(Icons.Default.Delete, contentDescription = "Sacar del viaje", tint = StatusRed)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // --- CATEGORÍA 2: INICIADOS / EN RUTA ---
+                            val activeRecordPassengers = trip.attendanceRecords.filter { it.status == TripStatus.INICIADO }
+                            Text(
+                                text = "2. Iniciados / En Ruta (${activeRecordPassengers.size}):",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = StatusYellow,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                            activeRecordPassengers.forEach { record ->
+                                val passengerName = trip.passengers.find { it.docNumber == record.passengerCedula }?.name ?: record.passengerCedula
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = StatusYellow.copy(alpha = 0.03f)),
+                                    border = BorderStroke(1.dp, StatusYellow.copy(alpha = 0.2f))
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(text = passengerName, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.Black)
+                                                Text(text = "Cédula: ${record.passengerCedula}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                                Text(
+                                                    text = "Vehículo: ${record.vehicleType} (${record.plateNumber})\nConductor: ${record.driverName} • Salida: ${record.startTime}",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
                                                 )
+                                            }
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                IconButton(onClick = {
+                                                    TransportesRepository.updateAttendanceStatus(trip.id, record.passengerCedula, TripStatus.CUMPLIDO)
+                                                    Toast.makeText(context, "Estado de $passengerName forzado a CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                                }) {
+                                                    Icon(Icons.Default.Check, contentDescription = "Forzar Cumplido", tint = StatusGreen)
+                                                }
+                                                IconButton(onClick = {
+                                                    TransportesRepository.updateAttendanceStatus(trip.id, record.passengerCedula, TripStatus.NO_CUMPLIDO)
+                                                    Toast.makeText(context, "Estado de $passengerName forzado a NO CUMPLIDO", Toast.LENGTH_SHORT).show()
+                                                }) {
+                                                    Icon(Icons.Default.Warning, contentDescription = "Forzar No Cumplido", tint = StatusRed)
+                                                }
+                                                IconButton(onClick = {
+                                                    TransportesRepository.deleteAttendanceRecord(trip.id, record.passengerCedula)
+                                                    Toast.makeText(context, "Asistencia de $passengerName reseteada a Pendiente", Toast.LENGTH_SHORT).show()
+                                                }) {
+                                                    Icon(Icons.Default.Refresh, contentDescription = "Reset a Pendiente", tint = Color.Gray)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // --- CATEGORÍA 3: CERRADOS / COMPLETADOS ---
+                            val closedRecordPassengers = trip.attendanceRecords.filter { it.status == TripStatus.CUMPLIDO || it.status == TripStatus.NO_CUMPLIDO }
+                            Text(
+                                text = "3. Cerrados / Finalizados (${closedRecordPassengers.size}):",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = StatusGreen,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                            closedRecordPassengers.forEach { record ->
+                                val passengerName = trip.passengers.find { it.docNumber == record.passengerCedula }?.name ?: record.passengerCedula
+                                val isSuccess = record.status == TripStatus.CUMPLIDO
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = (if (isSuccess) StatusGreen else StatusRed).copy(alpha = 0.04f)),
+                                    border = BorderStroke(1.dp, (if (isSuccess) StatusGreen else StatusRed).copy(alpha = 0.2f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "$passengerName (" + (if (isSuccess) "Cumplido" else "No cumplido") + ")",
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = if (isSuccess) StatusGreen else StatusRed
+                                            )
+                                            Text(text = "Cédula: ${record.passengerCedula}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                            Text(
+                                                text = "Vehículo: ${record.vehicleType} (${record.plateNumber})\nConductor: ${record.driverName} • Salida: ${record.startTime}",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, color = Color.Gray)
                                             )
                                         }
-                                        if (isConfirmed && attendanceRecord != null) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = "Vehículo: ${attendanceRecord.vehicleType} (${attendanceRecord.plateNumber})\nConductor: ${attendanceRecord.driverName} • Salida: ${attendanceRecord.startTime}",
-                                                style = MaterialTheme.typography.bodySmall.copy(
-                                                    color = StatusGreen,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                ),
-                                                modifier = Modifier.padding(start = 26.dp)
-                                            )
+
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            IconButton(onClick = {
+                                                TransportesRepository.updateAttendanceStatus(trip.id, record.passengerCedula, TripStatus.INICIADO)
+                                                Toast.makeText(context, "Estado de $passengerName cambiado a INICIADO", Toast.LENGTH_SHORT).show()
+                                            }) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = "Cambiar a Iniciado", tint = StatusYellow)
+                                            }
+                                            IconButton(onClick = {
+                                                TransportesRepository.deleteAttendanceRecord(trip.id, record.passengerCedula)
+                                                Toast.makeText(context, "Asistencia de $passengerName reseteada a Pendiente", Toast.LENGTH_SHORT).show()
+                                            }) {
+                                                Icon(Icons.Default.Refresh, contentDescription = "Reset a Pendiente", tint = Color.Gray)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- AGREGAR PARTICIPANTE AL MANIFIESTO (Si no está bloqueado) ---
+                            if (!isManifestLocked) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Divider()
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Añadir Participante al Manifiesto del Viaje:",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                    color = PrimaryBlue
+                                )
+                                
+                                var searchInput by remember { mutableStateOf("") }
+                                val addSuggestions = remember(searchInput) {
+                                    if (searchInput.isBlank()) emptyList()
+                                    else TransportesRepository.globalParticipants.filter { gp ->
+                                        gp.name.contains(searchInput, ignoreCase = true) &&
+                                        trip.passengers.none { p -> p.docNumber == gp.docNumber }
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = searchInput,
+                                    onValueChange = { searchInput = it },
+                                    label = { Text("Buscar participante global...") },
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    singleLine = true,
+                                    colors = getTextFieldColors()
+                                )
+
+                                if (addSuggestions.isNotEmpty()) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                        colors = CardDefaults.cardColors(containerColor = PrimaryBlue.copy(alpha = 0.05f))
+                                    ) {
+                                        Column(modifier = Modifier.padding(8.dp)) {
+                                            addSuggestions.take(3).forEach { participant ->
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            TransportesRepository.addPassengerToTrip(trip.id, participant)
+                                                            searchInput = ""
+                                                            Toast.makeText(context, "${participant.name} agregado al manifiesto", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                        .padding(vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Default.AddCircle, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(18.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = "${participant.name} (${participant.docNumber})",
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                                        color = Color.Black
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1754,18 +1966,20 @@ fun UserDashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(userTrips) { trip ->
-                        val isAttended = trip.attendanceRecords.any { it.passengerCedula == participant.docNumber }
-                        val statusLabel = when (trip.status) {
-                            TripStatus.CUMPLIDO -> "Cumplido"
-                            TripStatus.NO_CUMPLIDO -> "No cumplido"
-                            TripStatus.INICIADO -> "Iniciado"
-                            TripStatus.POR_CUMPLIR -> "Pendiente de Inicio"
+                        val myRecord = trip.attendanceRecords.find { it.passengerCedula == participant.docNumber }
+                        val isAttended = myRecord != null
+                        
+                        val statusLabel = when {
+                            isAttended && myRecord?.status == TripStatus.CUMPLIDO -> "Cumplido"
+                            isAttended && myRecord?.status == TripStatus.NO_CUMPLIDO -> "No cumplido"
+                            isAttended && myRecord?.status == TripStatus.INICIADO -> "Iniciado"
+                            else -> "Pendiente de Inicio"
                         }
-                        val statusColor = when (trip.status) {
-                            TripStatus.CUMPLIDO -> StatusGreen
-                            TripStatus.NO_CUMPLIDO -> StatusRed
-                            TripStatus.INICIADO -> StatusYellow
-                            TripStatus.POR_CUMPLIR -> StatusScheduled
+                        val statusColor = when {
+                            isAttended && myRecord?.status == TripStatus.CUMPLIDO -> StatusGreen
+                            isAttended && myRecord?.status == TripStatus.NO_CUMPLIDO -> StatusRed
+                            isAttended && myRecord?.status == TripStatus.INICIADO -> StatusYellow
+                            else -> StatusScheduled
                         }
 
                         Card(
@@ -1775,7 +1989,7 @@ fun UserDashboardScreen(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             border = BorderStroke(
                                 1.dp,
-                                if (isAttended) StatusGreen.copy(alpha = 0.4f) else Color.LightGray.copy(alpha = 0.5f)
+                                if (isAttended && myRecord?.status == TripStatus.CUMPLIDO) StatusGreen.copy(alpha = 0.4f) else Color.LightGray.copy(alpha = 0.5f)
                             )
                         ) {
                             Row(
@@ -1792,7 +2006,7 @@ fun UserDashboardScreen(
                                         color = Color.Black
                                     )
                                     Text(
-                                        text = "Fecha: ${trip.date} • Estado: $statusLabel",
+                                        text = "Fecha: ${trip.date} • Tu Estado: $statusLabel",
                                         style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                                     )
                                 }
@@ -1801,8 +2015,8 @@ fun UserDashboardScreen(
                                     colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.15f))
                                 ) {
                                     Text(
-                                        text = if (isAttended) "Asistencia OK" else statusLabel,
-                                        color = if (isAttended) StatusGreen else statusColor,
+                                        text = if (isAttended && myRecord?.status == TripStatus.CUMPLIDO) "Asistencia OK" else statusLabel,
+                                        color = if (isAttended && myRecord?.status == TripStatus.CUMPLIDO) StatusGreen else statusColor,
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
@@ -1835,7 +2049,6 @@ fun UserTripDetailsScreen(
     var plateNumber by remember { mutableStateOf("") }
     var startTime by remember { mutableStateOf("") }
     
-    // Selector Tipo Vehículo (Van, Camioneta, Bus, Otro)
     var selectedVehicleType by remember { mutableStateOf("Van") }
     var customVehicleType by remember { mutableStateOf("") }
     var expandedVehicle by remember { mutableStateOf(false) }
@@ -1845,27 +2058,55 @@ fun UserTripDetailsScreen(
         allTrips.value.find { it.id == trip.id } ?: trip
     }
 
-    // Inicializar inputs si ya hay algún registro previo del conductor en el viaje
-    LaunchedEffect(refreshedTrip.attendanceRecords) {
-        val firstRecord = refreshedTrip.attendanceRecords.firstOrNull()
-        if (firstRecord != null) {
-            driverName = firstRecord.driverName
-            plateNumber = firstRecord.plateNumber
-            startTime = firstRecord.startTime
+    // Buscar si el usuario ya tiene un registro de vehículo en este viaje
+    val userRecord = remember(refreshedTrip.attendanceRecords, loggedCedula) {
+        refreshedTrip.attendanceRecords.find { it.passengerCedula == loggedCedula }
+    }
+
+    // Inicializar inputs:
+    // - Si el usuario ya tiene registro, cargar sus datos.
+    // - Si no, pero hay otros registros de otros pasajeros, autocompletar con el último registro existente
+    LaunchedEffect(userRecord, refreshedTrip.attendanceRecords) {
+        if (userRecord != null) {
+            driverName = userRecord.driverName
+            plateNumber = userRecord.plateNumber
+            startTime = userRecord.startTime
             
-            val matchesType = listOf("Van", "Camioneta", "Bus").contains(firstRecord.vehicleType)
+            val matchesType = listOf("Van", "Camioneta", "Bus").contains(userRecord.vehicleType)
             if (matchesType) {
-                selectedVehicleType = firstRecord.vehicleType
+                selectedVehicleType = userRecord.vehicleType
             } else {
                 selectedVehicleType = "Otro"
-                customVehicleType = firstRecord.vehicleType
+                customVehicleType = userRecord.vehicleType
+            }
+        } else {
+            val genericRecord = refreshedTrip.attendanceRecords.firstOrNull()
+            if (genericRecord != null && driverName.isBlank() && plateNumber.isBlank()) {
+                driverName = genericRecord.driverName
+                plateNumber = genericRecord.plateNumber
+                startTime = genericRecord.startTime
+                
+                val matchesType = listOf("Van", "Camioneta", "Bus").contains(genericRecord.vehicleType)
+                if (matchesType) {
+                    selectedVehicleType = genericRecord.vehicleType
+                } else {
+                    selectedVehicleType = "Otro"
+                    customVehicleType = genericRecord.vehicleType
+                }
             }
         }
     }
 
     val context = LocalContext.current
-    val isTripActive = refreshedTrip.status == TripStatus.POR_CUMPLIR
-    val isTripInitiated = refreshedTrip.status == TripStatus.INICIADO
+    
+    // El viaje es editable/iniciable para mí si no tengo ningún registro en absoluto.
+    val isTripPendingForMe = userRecord == null
+    val isTripInitiatedForMe = userRecord != null && userRecord.status == TripStatus.INICIADO
+    val isTripClosedForMe = userRecord != null && (userRecord.status == TripStatus.CUMPLIDO || userRecord.status == TripStatus.NO_CUMPLIDO)
+
+    // Validación de fecha futura
+    val today = "2026-07-03"
+    val isFutureDate = refreshedTrip.date > today
 
     Column(
         modifier = Modifier
@@ -1888,14 +2129,8 @@ fun UserTripDetailsScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = PrimaryBlue
                 )
-                val statusLabel = when (refreshedTrip.status) {
-                    TripStatus.CUMPLIDO -> "Cumplido"
-                    TripStatus.NO_CUMPLIDO -> "No cumplido"
-                    TripStatus.INICIADO -> "Iniciado"
-                    TripStatus.POR_CUMPLIR -> "Programado"
-                }
                 Text(
-                    text = "Viaje programado: ${refreshedTrip.date} • Estado: $statusLabel",
+                    text = "Fecha programada: ${refreshedTrip.date}",
                     style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                 )
             }
@@ -1907,9 +2142,70 @@ fun UserTripDetailsScreen(
                 .weight(1f),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Formulario de apertura de viaje (Datos del vehículo)
+            // Advertencia si es una fecha futura
+            if (isFutureDate) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = StatusRed.copy(alpha = 0.05f)),
+                        border = BorderStroke(1.dp, StatusRed.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = StatusRed)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "El viaje está programado para una fecha futura (${refreshedTrip.date}). No se permite iniciar o registrar asistencias antes de la fecha establecida.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = StatusRed
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Listado de vehículos iniciados por otros (Para dar visibilidad al usuario)
+            val otherRecords = refreshedTrip.attendanceRecords.filter { it.passengerCedula != loggedCedula }
+            if (otherRecords.isNotEmpty() && isTripPendingForMe) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = StatusYellow.copy(alpha = 0.05f)),
+                        border = BorderStroke(1.dp, StatusYellow.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = StatusYellow, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Iniciado por otros usuarios (Vehículos paralelos):",
+                                    fontWeight = FontWeight.Bold,
+                                    color = StatusYellow,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            otherRecords.forEach { record ->
+                                val passengerName = refreshedTrip.passengers.find { it.docNumber == record.passengerCedula }?.name ?: record.passengerCedula
+                                val statusText = when (record.status) {
+                                    TripStatus.CUMPLIDO -> "Cumplido"
+                                    TripStatus.NO_CUMPLIDO -> "No cumplido"
+                                    TripStatus.INICIADO -> "Iniciado"
+                                    else -> ""
+                                }
+                                Text(
+                                    text = "• $passengerName viaja en ${record.vehicleType} (${record.plateNumber}) con ${record.driverName} - [$statusText]",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Formulario de datos del vehículo
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.15f)),
@@ -1920,12 +2216,9 @@ fun UserTripDetailsScreen(
                             text = "Datos del Transporte",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
                         )
-                        Text(
-                            text = "Registre los detalles del vehículo y conductor. Solo se permiten modificar antes de iniciar el viaje.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
-                        )
 
-                        val editable = isTripActive || isTripInitiated
+                        // Deshabilitar edición si es fecha futura o si ya inicié o cerré mi viaje
+                        val editable = isTripPendingForMe && !isFutureDate
 
                         OutlinedTextField(
                             value = driverName,
@@ -1949,7 +2242,6 @@ fun UserTripDetailsScreen(
                             colors = getTextFieldColors()
                         )
 
-                        // Hora de inicio con el TimeSelector nativo (Formato 24h)
                         TimeSelector(
                             label = "Hora de Salida (Inicio)",
                             selectedTime = startTime,
@@ -1957,7 +2249,6 @@ fun UserTripDetailsScreen(
                             enabled = editable
                         )
 
-                        // Selector cerrado para el Tipo de Vehículo (Van, Camioneta, Bus, Otro)
                         ExposedDropdownMenuBox(
                             expanded = expandedVehicle && editable,
                             onExpandedChange = { if (editable) expandedVehicle = it }
@@ -1989,7 +2280,6 @@ fun UserTripDetailsScreen(
                             }
                         }
 
-                        // Si elige "Otro", se habilita el textfield libre
                         if (selectedVehicleType == "Otro") {
                             OutlinedTextField(
                                 value = customVehicleType,
@@ -2018,7 +2308,13 @@ fun UserTripDetailsScreen(
             items(refreshedTrip.passengers) { passenger ->
                 val passengerRecord = refreshedTrip.attendanceRecords.find { it.passengerCedula == passenger.docNumber }
                 val isAttended = passengerRecord != null
-                val editable = isTripActive || isTripInitiated
+                
+                // Un pasajero es editable por mí si no está confirmado en ningún vehículo, 
+                // o si está confirmado específicamente en mi vehículo.
+                val isConfirmedByMe = isAttended && passengerRecord?.passengerCedula == loggedCedula
+                val isConfirmedInMyVehicle = isAttended && userRecord != null && passengerRecord?.plateNumber == userRecord.plateNumber
+
+                val canModifyThisPassenger = !isFutureDate && (isTripPendingForMe && !isAttended || isTripInitiatedForMe && isConfirmedInMyVehicle)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -2036,14 +2332,13 @@ fun UserTripDetailsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 val suffix = if (passenger.docNumber == loggedCedula) " (Yo)" else ""
                                 Text(
                                     text = passenger.name + suffix,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                                     color = Color.Black
                                 )
-                                // Ocultar Cédula de otros participantes
                                 if (passenger.docNumber == loggedCedula) {
                                     Text(
                                         text = "Proyecto: ${passenger.projectNumber} • Cédula: ${passenger.docNumber}",
@@ -2051,30 +2346,40 @@ fun UserTripDetailsScreen(
                                     )
                                 } else {
                                     Text(
-                                        text = "Proyecto: ${passenger.projectNumber}", // Cédula oculta por privacidad
+                                        text = "Proyecto: ${passenger.projectNumber}",
                                         style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                                     )
                                 }
                             }
 
                             if (isAttended) {
-                                IconButton(
-                                    onClick = {
-                                        if (editable) {
+                                if (canModifyThisPassenger) {
+                                    IconButton(
+                                        onClick = {
                                             TransportesRepository.removeAttendance(refreshedTrip.id, passenger.docNumber)
                                             Toast.makeText(context, "Asistencia removida para ${passenger.name}", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "El viaje ya está cerrado", Toast.LENGTH_SHORT).show()
                                         }
+                                    ) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = "Remover", tint = StatusGreen)
                                     }
-                                ) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = "Remover", tint = StatusGreen)
+                                } else {
+                                    // Bloqueado: Viaja en otro vehículo
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = StatusScheduled.copy(alpha = 0.1f))
+                                    ) {
+                                        Text(
+                                            text = "Viaja en ${passengerRecord?.plateNumber}",
+                                            color = StatusScheduled,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             } else {
                                 Button(
                                     onClick = {
-                                        if (!editable) {
-                                            Toast.makeText(context, "El viaje ya está cerrado", Toast.LENGTH_SHORT).show()
+                                        if (isFutureDate) {
+                                            Toast.makeText(context, "No se puede iniciar antes de la fecha", Toast.LENGTH_SHORT).show()
                                             return@Button
                                         }
                                         if (driverName.isBlank() || plateNumber.isBlank() || startTime.isBlank()) {
@@ -2102,7 +2407,7 @@ fun UserTripDetailsScreen(
                                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    enabled = editable
+                                    enabled = canModifyThisPassenger
                                 ) {
                                     Text("Confirmar", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                                 }
@@ -2113,10 +2418,14 @@ fun UserTripDetailsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Divider()
                             Spacer(modifier = Modifier.height(8.dp))
+                            val isMyGroup = userRecord != null && passengerRecord.plateNumber == userRecord.plateNumber
                             Text(
-                                text = "Transporte Asociado:\nPlaca: ${passengerRecord.plateNumber} • Conductor: ${passengerRecord.driverName}\nHora: ${passengerRecord.startTime} • Vehículo: ${passengerRecord.vehicleType}",
+                                text = (if (isMyGroup) "Tu Transporte:\n" else "Transporte de Compañero:\n") +
+                                        "Placa: ${passengerRecord.plateNumber} • Conductor: ${passengerRecord.driverName}\n" +
+                                        "Hora: ${passengerRecord.startTime} • Vehículo: ${passengerRecord.vehicleType}\n" +
+                                        "Estado: " + (if (passengerRecord.status == TripStatus.CUMPLIDO) "Cumplido" else if (passengerRecord.status == TripStatus.NO_CUMPLIDO) "No cumplido" else "Iniciado"),
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    color = StatusGreen,
+                                    color = if (isMyGroup) StatusGreen else StatusScheduled,
                                     lineHeight = 16.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -2126,8 +2435,8 @@ fun UserTripDetailsScreen(
                 }
             }
 
-            // Flujo de Inicio de Viaje (Solo si el viaje está en estado POR_CUMPLIR)
-            if (isTripActive) {
+            // Flujo de Inicio de Viaje (Si aún no he iniciado)
+            if (isTripPendingForMe && !isFutureDate) {
                 item {
                     Button(
                         onClick = {
@@ -2141,7 +2450,7 @@ fun UserTripDetailsScreen(
                                 return@Button
                             }
 
-                            // Auto-confirmar al conductor/usuario logueado si no se ha confirmado
+                            // Confirmarse a sí mismo en el vehículo si no lo ha hecho en la lista
                             if (refreshedTrip.attendanceRecords.none { it.passengerCedula == loggedCedula }) {
                                 TransportesRepository.confirmAttendance(
                                     tripId = refreshedTrip.id,
@@ -2153,12 +2462,9 @@ fun UserTripDetailsScreen(
                                 )
                             }
 
-                            // Cambiar estado a INICIADO y Redirigir de vuelta al listado
-                            val started = TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.INICIADO)
-                            if (started) {
-                                Toast.makeText(context, "¡Aceptado! Inicio de viaje registrado", Toast.LENGTH_LONG).show()
-                                onBack() // Redirección inmediata al dashboard de viajes
-                            }
+                            // Poner estado de inicio
+                            Toast.makeText(context, "¡Aceptado! Inicio de viaje registrado para tu vehículo", Toast.LENGTH_LONG).show()
+                            onBack()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2176,8 +2482,8 @@ fun UserTripDetailsScreen(
                 }
             }
 
-            // Sección de Cierre del Viaje (Solo se muestra una vez el viaje está INICIADO)
-            if (isTripInitiated) {
+            // Sección de Cierre del Viaje (Si ya lo inicié y está activo para mí)
+            if (isTripInitiatedForMe) {
                 item {
                     Divider()
                     Card(
@@ -2192,7 +2498,7 @@ fun UserTripDetailsScreen(
                                 color = PrimaryBlue
                             )
                             Text(
-                                text = "El viaje ha sido iniciado. Al concluir el recorrido, seleccione el estado de cumplimiento final del viaje.",
+                                text = "Tu vehículo ya está en ruta. Al concluir el recorrido, seleccione el cumplimiento del viaje para tu grupo.",
                                 style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                             )
 
@@ -2202,7 +2508,7 @@ fun UserTripDetailsScreen(
                             ) {
                                 Button(
                                     onClick = {
-                                        TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.CUMPLIDO)
+                                        TransportesRepository.closeTripForUser(refreshedTrip.id, loggedCedula, TripStatus.CUMPLIDO)
                                         Toast.makeText(context, "Viaje Cerrado como CUMPLIDO", Toast.LENGTH_SHORT).show()
                                         onBack()
                                     },
@@ -2217,7 +2523,7 @@ fun UserTripDetailsScreen(
 
                                 Button(
                                     onClick = {
-                                        TransportesRepository.closeTrip(refreshedTrip.id, TripStatus.NO_CUMPLIDO)
+                                        TransportesRepository.closeTripForUser(refreshedTrip.id, loggedCedula, TripStatus.NO_CUMPLIDO)
                                         Toast.makeText(context, "Viaje Cerrado como NO CUMPLIDO", Toast.LENGTH_SHORT).show()
                                         onBack()
                                     },
@@ -2230,6 +2536,37 @@ fun UserTripDetailsScreen(
                                     Text("No Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // Si ya fue cerrado para mí
+            if (isTripClosedForMe) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (userRecord?.status == TripStatus.CUMPLIDO) StatusGreen.copy(alpha = 0.05f) else StatusRed.copy(alpha = 0.05f)
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (userRecord?.status == TripStatus.CUMPLIDO) StatusGreen.copy(alpha = 0.2f) else StatusRed.copy(alpha = 0.2f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = if (userRecord?.status == TripStatus.CUMPLIDO) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = if (userRecord?.status == TripStatus.CUMPLIDO) StatusGreen else StatusRed,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Has finalizado el viaje como: " + (if (userRecord?.status == TripStatus.CUMPLIDO) "CUMPLIDO" else "NO CUMPLIDO"),
+                                fontWeight = FontWeight.Bold,
+                                color = if (userRecord?.status == TripStatus.CUMPLIDO) StatusGreen else StatusRed
+                            )
                         }
                     }
                 }

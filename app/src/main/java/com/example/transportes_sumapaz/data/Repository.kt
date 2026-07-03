@@ -30,7 +30,8 @@ data class AttendanceRecord(
     val driverName: String,
     val plateNumber: String,
     val startTime: String,
-    val vehicleType: String
+    val vehicleType: String,
+    var status: TripStatus = TripStatus.INICIADO
 )
 
 /**
@@ -41,9 +42,21 @@ data class Trip(
     val date: String,                   // Formato "YYYY-MM-DD"
     val route: String,                  // "Sede Betania" o "Sede San Juan"
     var status: TripStatus,             // CUMPLIDO, NO_CUMPLIDO, POR_CUMPLIR
-    val passengers: List<Participant>,  // Pasajeros programados por el líder
+    var passengers: List<Participant>,  // Pasajeros programados por el líder (var para permitir edición)
     val attendanceRecords: MutableList<AttendanceRecord> = mutableStateListOf() // Asistencias confirmadas con datos de vehículo
-)
+) {
+    fun updateStatus() {
+        if (attendanceRecords.isEmpty()) {
+            status = TripStatus.POR_CUMPLIR
+        } else if (attendanceRecords.any { it.status == TripStatus.INICIADO }) {
+            status = TripStatus.INICIADO
+        } else if (attendanceRecords.any { it.status == TripStatus.CUMPLIDO }) {
+            status = TripStatus.CUMPLIDO
+        } else {
+            status = TripStatus.NO_CUMPLIDO
+        }
+    }
+}
 
 /**
  * Viaje Ocasional registrado por un usuario.
@@ -136,7 +149,7 @@ object TransportesRepository {
             passengers = listOf(globalParticipants[0])
         )
         tripPast.attendanceRecords.add(
-            AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30", "Bus")
+            AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30", "Bus", TripStatus.CUMPLIDO)
         )
         trips.add(tripPast)
     }
@@ -231,24 +244,19 @@ object TransportesRepository {
         startTime: String,
         vehicleType: String
     ): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * insert or replace into trip_attendance values (:tripId, :passengerCedula, :driver, :plate, ...)
-         */
         val trip = trips.find { it.id == tripId } ?: return false
-        // Remover si ya existe un registro previo
         trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
-        
-        // Agregar el nuevo registro con los datos del vehículo
         trip.attendanceRecords.add(
             AttendanceRecord(
                 passengerCedula = passengerCedula,
                 driverName = driverName,
                 plateNumber = plateNumber,
                 startTime = startTime,
-                vehicleType = vehicleType
+                vehicleType = vehicleType,
+                status = TripStatus.INICIADO
             )
         )
+        trip.updateStatus()
         return true
     }
 
@@ -256,30 +264,74 @@ object TransportesRepository {
      * Remueve la confirmación de asistencia de un pasajero.
      */
     fun removeAttendance(tripId: String, passengerCedula: String): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * delete from trip_attendance where trip_id = :tripId and passenger_cedula = :passengerCedula
-         */
         val trip = trips.find { it.id == tripId } ?: return false
         trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
+        trip.updateStatus()
         return true
     }
 
     /**
-     * Cierra un viaje cambiando su estado final.
+     * Cierra el viaje para un pasajero y su grupo de vehículo.
      */
-    fun closeTrip(tripId: String, status: TripStatus): Boolean {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * update trips set status = :status where id = :tripId
-         */
-        val index = trips.indexOfFirst { it.id == tripId }
-        if (index != -1) {
-            val trip = trips[index]
-            trips[index] = trip.copy(status = status)
-            return true
+    fun closeTripForUser(tripId: String, passengerCedula: String, status: TripStatus): Boolean {
+        val trip = trips.find { it.id == tripId } ?: return false
+        val userRecord = trip.attendanceRecords.find { it.passengerCedula == passengerCedula } ?: return false
+        val userPlate = userRecord.plateNumber
+        
+        trip.attendanceRecords.forEach { record ->
+            if (record.plateNumber == userPlate) {
+                record.status = status
+            }
         }
-        return false
+        trip.updateStatus()
+        return true
+    }
+
+    // --- Funciones del Líder para Administrar Manifiesto y Estados ---
+
+    fun addPassengerToTrip(tripId: String, participant: Participant): Boolean {
+        val trip = trips.find { it.id == tripId } ?: return false
+        if (trip.attendanceRecords.isNotEmpty()) return false // Bloqueado si ya inició alguien
+        if (trip.passengers.any { it.docNumber == participant.docNumber }) return false
+        trip.passengers = trip.passengers + participant
+        return true
+    }
+
+    fun removePassengerFromTrip(tripId: String, passengerCedula: String): Boolean {
+        val trip = trips.find { it.id == tripId } ?: return false
+        if (trip.attendanceRecords.isNotEmpty()) return false // Bloqueado si ya inició alguien
+        trip.passengers = trip.passengers.filter { it.docNumber != passengerCedula }
+        return true
+    }
+
+    fun updateAttendanceStatus(tripId: String, passengerCedula: String, newStatus: TripStatus): Boolean {
+        val trip = trips.find { it.id == tripId } ?: return false
+        val record = trip.attendanceRecords.find { it.passengerCedula == passengerCedula }
+        if (record != null) {
+            record.status = newStatus
+        } else {
+            if (newStatus != TripStatus.POR_CUMPLIR) {
+                trip.attendanceRecords.add(
+                    AttendanceRecord(
+                        passengerCedula = passengerCedula,
+                        driverName = "Líder (Forzado)",
+                        plateNumber = "LID-000",
+                        startTime = "00:00",
+                        vehicleType = "Otro",
+                        status = newStatus
+                    )
+                )
+            }
+        }
+        trip.updateStatus()
+        return true
+    }
+
+    fun deleteAttendanceRecord(tripId: String, passengerCedula: String): Boolean {
+        val trip = trips.find { it.id == tripId } ?: return false
+        val removed = trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
+        trip.updateStatus()
+        return removed
     }
 
     // --- Viajes Ocasionales ---
