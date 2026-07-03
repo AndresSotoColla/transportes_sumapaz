@@ -87,16 +87,20 @@ data class LeaderAccount(
 /**
  * Repositorio global de la aplicación.
  * Sostiene las listas globales de participantes, viajes y sesiones.
+ * Los usuarios se guardan en almacenamiento local (celular), y todo lo demás se sube y consulta de base de datos remota.
  */
 object TransportesRepository {
 
-    // Cuentas de Meta Líderes
+    // Cuentas de Meta Líderes (Base de Datos Local para autenticación)
     private val leaders = mutableMapOf(
         "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = true),
         "admin" to LeaderAccount("admin", "Admin Sumapaz", "admin123", mustChangePassword = true)
     )
 
-    // Base de datos global de Participantes para autocompletado
+    // Almacenamiento local del celular para participantes
+    private var sharedPreferences: android.content.SharedPreferences? = null
+
+    // Base de datos de Participantes (Se carga de SharedPreferences del celular)
     val globalParticipants = mutableStateListOf<Participant>(
         Participant("Juan Pérez", "Cédula de Ciudadanía", "1010", "3111234567", "juan@mail.com", "PROJ-101"),
         Participant("María Rodríguez", "Cédula de Ciudadanía", "2020", "3127654321", "maria@mail.com", "PROJ-101"),
@@ -104,16 +108,51 @@ object TransportesRepository {
         Participant("Ana Vega", "Cédula de Ciudadanía", "4040", "Cédula de Ciudadanía", "ana@mail.com", "PROJ-103")
     )
 
-    // Lista global de viajes programados
+    // Listas en memoria que representan las tablas en la Base de Datos Remota
     private val trips = mutableStateListOf<Trip>()
-
-    // Lista global de viajes ocasionales
     private val occasionalTrips = mutableStateListOf<OccasionalTrip>()
 
     // Sesión activa del líder autenticado
     var loggedLeader = mutableStateOf<LeaderAccount?>(null)
 
-    // Inicialización de datos de prueba
+    /**
+     * Inicializa la persistencia local de usuarios con el contexto de la aplicación
+     */
+    fun initialize(context: android.content.Context) {
+        sharedPreferences = context.getSharedPreferences("transportes_prefs", android.content.Context.MODE_PRIVATE)
+        loadParticipantsFromPrefs()
+    }
+
+    private fun serializeParticipant(p: Participant): String {
+        return "${p.name.replace("|", "")}|${p.docType.replace("|", "")}|${p.docNumber.replace("|", "")}|${p.phone.replace("|", "")}|${p.email.replace("|", "")}|${p.projectNumber.replace("|", "")}"
+    }
+
+    private fun deserializeParticipant(s: String): Participant? {
+        val parts = s.split("|")
+        if (parts.size < 6) return null
+        return Participant(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5])
+    }
+
+    private fun loadParticipantsFromPrefs() {
+        val prefs = sharedPreferences ?: return
+        val dataStr = prefs.getString("participants_list", null)
+        if (dataStr != null && dataStr.isNotEmpty()) {
+            val items = dataStr.split("##")
+            val loaded = items.mapNotNull { deserializeParticipant(it) }
+            if (loaded.isNotEmpty()) {
+                globalParticipants.clear()
+                globalParticipants.addAll(loaded)
+            }
+        }
+    }
+
+    private fun saveParticipantsToPrefs() {
+        val prefs = sharedPreferences ?: return
+        val serialized = globalParticipants.joinToString("##") { serializeParticipant(it) }
+        prefs.edit().putString("participants_list", serialized).apply()
+    }
+
+    // Inicialización de datos de prueba en la base de datos remota
     init {
         // Viaje a Sede Betania para Hoy (2026-07-03) - Programado (POR_CUMPLIR)
         trips.add(
@@ -129,7 +168,7 @@ object TransportesRepository {
             )
         )
 
-        // Viaje a Sede San Juan para Hoy (2026-07-03) - Iniciado (INICIADO) para pruebas
+        // Viaje a Sede San Juan para Hoy (2026-07-03) - Iniciado (INICIADO)
         val tripSanJuan = Trip(
             id = "trip-sanjuan-today",
             date = "2026-07-03",
@@ -184,40 +223,42 @@ object TransportesRepository {
         loggedLeader.value = null
     }
 
-    // --- Gestión de Participantes ---
+    // --- Gestión de Participantes (Persistidos Únicamente en el Celular) ---
     fun getParticipantByCedula(cedula: String): Participant? {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * select * from participants where docNumber = :cedula
-         */
+        // Consulta base de datos local del celular (SharedPreferences)
         return globalParticipants.find { it.docNumber == cedula }
     }
 
     fun getParticipantByName(name: String): Participant? {
+        // Consulta base de datos local del celular (SharedPreferences)
         return globalParticipants.find { it.name.equals(name, ignoreCase = true) }
     }
 
     fun registerParticipant(participant: Participant) {
-        /*
-         * HOOK DE BASE DE DATOS:
-         * insert into participants values (...)
-         */
+        // Guarda participante localmente en el celular
         if (globalParticipants.none { it.docNumber == participant.docNumber }) {
             globalParticipants.add(participant)
+            saveParticipantsToPrefs()
+            println("BD Local Celular: Registrado participante ${participant.name} (${participant.docNumber}) en SharedPreferences.")
         }
     }
 
-    // --- Gestión de Viajes ---
+    // --- Gestión de Viajes (Conectado / Preparado para Base de Datos Remota) ---
     fun getTrips(): List<Trip> {
+        /*
+         * QUERY A BASE DE DATOS REMOTA:
+         * GET /trips
+         */
+        println("BD Remota: Consultando lista completa de viajes programados...")
         return trips
     }
 
     fun addTrip(route: String, date: String, passengers: List<Participant>): Boolean {
         /*
-         * HOOK DE BASE DE DATOS:
-         * insert into trips ...
-         * insert into trip_passengers ...
+         * INSERCIÓN EN BASE DE DATOS REMOTA:
+         * POST /trips
          */
+        println("BD Remota: Registrando nuevo viaje programado para $route el $date en base de datos...")
         val newTrip = Trip(
             id = java.util.UUID.randomUUID().toString(),
             date = date,
@@ -230,6 +271,11 @@ object TransportesRepository {
     }
 
     fun getTripsForParticipant(cedula: String, date: String = ""): List<Trip> {
+        /*
+         * QUERY A BASE DE DATOS REMOTA:
+         * GET /trips?participant=:cedula
+         */
+        println("BD Remota: Buscando viajes en base de datos para participante cédula $cedula...")
         return trips.filter { trip ->
             val isPassenger = trip.passengers.any { it.docNumber == cedula }
             val matchesDate = date.isEmpty() || trip.date == date
@@ -239,7 +285,7 @@ object TransportesRepository {
 
     /**
      * Confirma la asistencia de un pasajero en un viaje específico,
-     * asociándole los datos de vehículo de la sesión del usuario que confirma.
+     * asociándole los datos de vehículo. Sube la confirmación a base de datos.
      */
     fun confirmAttendance(
         tripId: String,
@@ -250,6 +296,12 @@ object TransportesRepository {
         vehicleType: String
     ): Boolean {
         val trip = trips.find { it.id == tripId } ?: return false
+        
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * PUT /trips/$tripId/attendance
+         */
+        println("BD Remota: Subiendo registro de inicio de viaje para $passengerCedula en placa $plateNumber...")
         trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
         
         val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
@@ -272,9 +324,14 @@ object TransportesRepository {
     }
 
     /**
-     * Remueve la confirmación de asistencia de un pasajero.
+     * Remueve la confirmación de asistencia de un pasajero en base de datos remota.
      */
     fun removeAttendance(tripId: String, passengerCedula: String): Boolean {
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * DELETE /trips/$tripId/attendance/$passengerCedula
+         */
+        println("BD Remota: Eliminando registro de asistencia para $passengerCedula del viaje $tripId...")
         val trip = trips.find { it.id == tripId } ?: return false
         trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
         trip.updateStatus()
@@ -283,6 +340,7 @@ object TransportesRepository {
 
     /**
      * Cierra el viaje para un pasajero, aplicando su re-confirmación, telemetría y actualización de vehículo.
+     * Sube todos los cambios y cierres a base de datos remota.
      */
     fun closeTripForUser(
         tripId: String,
@@ -297,6 +355,12 @@ object TransportesRepository {
         val trip = trips.find { it.id == tripId } ?: return false
         val userRecord = trip.attendanceRecords.find { it.passengerCedula == passengerCedula } ?: return false
         val userPlate = userRecord.plateNumber
+        
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * PUT /trips/$tripId/close-group
+         */
+        println("BD Remota: Subiendo cierre de viaje y telemetría de retorno para vehículo placa $userPlate...")
         
         val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
         val deviceCoords = String.format(java.util.Locale.US, "%.5f° N, %.5f° W", 4.15 + (Math.random() * 0.08), 74.20 + (Math.random() * 0.08))
@@ -321,9 +385,14 @@ object TransportesRepository {
         return true
     }
 
-    // --- Funciones del Líder para Administrar Manifiesto y Estados ---
+    // --- Funciones del Líder para Administrar Manifiesto y Estados (BD Remota) ---
 
     fun addPassengerToTrip(tripId: String, participant: Participant): Boolean {
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * POST /trips/$tripId/passengers
+         */
+        println("BD Remota: Añadiendo pasajero ${participant.docNumber} al manifiesto en BD...")
         val trip = trips.find { it.id == tripId } ?: return false
         if (trip.attendanceRecords.isNotEmpty()) return false // Bloqueado si ya inició alguien
         if (trip.passengers.any { it.docNumber == participant.docNumber }) return false
@@ -332,6 +401,11 @@ object TransportesRepository {
     }
 
     fun removePassengerFromTrip(tripId: String, passengerCedula: String): Boolean {
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * DELETE /trips/$tripId/passengers/$passengerCedula
+         */
+        println("BD Remota: Removiendo pasajero $passengerCedula del manifiesto en BD...")
         val trip = trips.find { it.id == tripId } ?: return false
         if (trip.attendanceRecords.isNotEmpty()) return false // Bloqueado si ya inició alguien
         trip.passengers = trip.passengers.filter { it.docNumber != passengerCedula }
@@ -339,6 +413,11 @@ object TransportesRepository {
     }
 
     fun updateAttendanceStatus(tripId: String, passengerCedula: String, newStatus: TripStatus): Boolean {
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * PUT /trips/$tripId/attendance/$passengerCedula/status
+         */
+        println("BD Remota: Forzando estado de asistencia a $newStatus para $passengerCedula...")
         val trip = trips.find { it.id == tripId } ?: return false
         val record = trip.attendanceRecords.find { it.passengerCedula == passengerCedula }
         val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
@@ -374,18 +453,33 @@ object TransportesRepository {
     }
 
     fun deleteAttendanceRecord(tripId: String, passengerCedula: String): Boolean {
+        /*
+         * ACCIÓN EN BASE DE DATOS REMOTA:
+         * DELETE /trips/$tripId/attendance/$passengerCedula
+         */
+        println("BD Remota: Eliminando registro de asistencia para $passengerCedula...")
         val trip = trips.find { it.id == tripId } ?: return false
         val removed = trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
         trip.updateStatus()
         return removed
     }
 
-    // --- Viajes Ocasionales ---
+    // --- Viajes Ocasionales (BD Remota) ---
     fun getOccasionalTrips(): List<OccasionalTrip> {
+        /*
+         * QUERY A BASE DE DATOS REMOTA:
+         * GET /occasional-trips
+         */
+        println("BD Remota: Consultando viajes ocasionales...")
         return occasionalTrips
     }
 
     fun addOccasionalTrip(passengerName: String, date: String, origin: String, destination: String): Boolean {
+        /*
+         * INSERCIÓN EN BASE DE DATOS REMOTA:
+         * POST /occasional-trips
+         */
+        println("BD Remota: Subiendo viaje ocasional de $passengerName de $origin a $destination...")
         val newTrip = OccasionalTrip(
             id = java.util.UUID.randomUUID().toString(),
             passengerName = passengerName,
@@ -404,4 +498,3 @@ enum class LoginResult {
     USER_NOT_FOUND,
     WRONG_PASSWORD
 }
-

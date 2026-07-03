@@ -2137,11 +2137,8 @@ fun UserTripDetailsScreen(
                 customVehicleType = userRecord.vehicleType
             }
 
-            // Para el cierre, re-confirmar pre-seleccionando a los que están en mi vehículo
-            val myVehiclePlate = userRecord.plateNumber
-            val myPassengers = refreshedTrip.attendanceRecords.filter { it.plateNumber == myVehiclePlate }
+            // Para el cierre, no pre-confirmamos a nadie, se debe confirmar manualmente en la salida (ida toca de nuevo salida)
             closedConfirmedList.clear()
-            myPassengers.forEach { closedConfirmedList.add(it.passengerCedula) }
         } else {
             val genericRecord = refreshedTrip.attendanceRecords.firstOrNull()
             if (genericRecord != null && driverName.isBlank() && plateNumber.isBlank()) {
@@ -2166,8 +2163,7 @@ fun UserTripDetailsScreen(
     val isTripInitiatedForMe = userRecord != null && userRecord.status == TripStatus.INICIADO
     val isTripClosedForMe = userRecord != null && (userRecord.status == TripStatus.CUMPLIDO || userRecord.status == TripStatus.NO_CUMPLIDO)
 
-    // Selector de cumplimiento para el cierre único
-    var isClosureSuccessful by remember { mutableStateOf(true) }
+
 
     // Validación de fecha futura
     val today = "2026-07-03"
@@ -2469,42 +2465,7 @@ fun UserTripDetailsScreen(
                                 style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
                             )
 
-                            // Selector de estado (Cumplido / No Cumplido)
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Estado de cumplimiento final del viaje:",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.Black
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Button(
-                                        onClick = { isClosureSuccessful = true },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isClosureSuccessful) StatusGreen else Color.LightGray.copy(alpha = 0.3f),
-                                            contentColor = if (isClosureSuccessful) Color.White else Color.Black
-                                        ),
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
-                                    }
 
-                                    Button(
-                                        onClick = { isClosureSuccessful = false },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (!isClosureSuccessful) StatusRed else Color.LightGray.copy(alpha = 0.3f),
-                                            contentColor = if (!isClosureSuccessful) Color.White else Color.Black
-                                        ),
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("No Cumplido", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
-                                    }
-                                }
-                            }
 
                             // Checklist de re-confirmación con tarjetas y botones "Confirmar" / CheckCircle (como en el inicio)
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2589,7 +2550,7 @@ fun UserTripDetailsScreen(
                                     TransportesRepository.closeTripForUser(
                                         tripId = refreshedTrip.id,
                                         passengerCedula = loggedCedula,
-                                        status = if (isClosureSuccessful) TripStatus.CUMPLIDO else TripStatus.NO_CUMPLIDO,
+                                        status = TripStatus.CUMPLIDO,
                                         confirmedPassengers = closedConfirmedList.toList(),
                                         driverName = driverName.trim(),
                                         plateNumber = plateNumber.trim().uppercase(),
