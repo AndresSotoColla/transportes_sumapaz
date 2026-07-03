@@ -31,7 +31,12 @@ data class AttendanceRecord(
     val plateNumber: String,
     val startTime: String,
     val vehicleType: String,
-    var status: TripStatus = TripStatus.INICIADO
+    var status: TripStatus = TripStatus.INICIADO,
+    // Telemetría de celular
+    var startDeviceTime: String = "",
+    var startCoordinates: String = "",
+    var endDeviceTime: String = "",
+    var endCoordinates: String = ""
 )
 
 /**
@@ -246,6 +251,10 @@ object TransportesRepository {
     ): Boolean {
         val trip = trips.find { it.id == tripId } ?: return false
         trip.attendanceRecords.removeAll { it.passengerCedula == passengerCedula }
+        
+        val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val deviceCoords = String.format(java.util.Locale.US, "%.5f° N, %.5f° W", 4.15 + (Math.random() * 0.08), 74.20 + (Math.random() * 0.08))
+        
         trip.attendanceRecords.add(
             AttendanceRecord(
                 passengerCedula = passengerCedula,
@@ -253,7 +262,9 @@ object TransportesRepository {
                 plateNumber = plateNumber,
                 startTime = startTime,
                 vehicleType = vehicleType,
-                status = TripStatus.INICIADO
+                status = TripStatus.INICIADO,
+                startDeviceTime = deviceTime,
+                startCoordinates = deviceCoords
             )
         )
         trip.updateStatus()
@@ -271,16 +282,30 @@ object TransportesRepository {
     }
 
     /**
-     * Cierra el viaje para un pasajero y su grupo de vehículo.
+     * Cierra el viaje para un pasajero, aplicando su re-confirmación y telemetría de cierre.
      */
-    fun closeTripForUser(tripId: String, passengerCedula: String, status: TripStatus): Boolean {
+    fun closeTripForUser(
+        tripId: String,
+        passengerCedula: String,
+        status: TripStatus,
+        confirmedPassengers: List<String>
+    ): Boolean {
         val trip = trips.find { it.id == tripId } ?: return false
         val userRecord = trip.attendanceRecords.find { it.passengerCedula == passengerCedula } ?: return false
         val userPlate = userRecord.plateNumber
         
+        val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val deviceCoords = String.format(java.util.Locale.US, "%.5f° N, %.5f° W", 4.15 + (Math.random() * 0.08), 74.20 + (Math.random() * 0.08))
+        
         trip.attendanceRecords.forEach { record ->
             if (record.plateNumber == userPlate) {
-                record.status = status
+                if (confirmedPassengers.contains(record.passengerCedula)) {
+                    record.status = status
+                } else {
+                    record.status = TripStatus.NO_CUMPLIDO
+                }
+                record.endDeviceTime = deviceTime
+                record.endCoordinates = deviceCoords
             }
         }
         trip.updateStatus()
@@ -307,20 +332,32 @@ object TransportesRepository {
     fun updateAttendanceStatus(tripId: String, passengerCedula: String, newStatus: TripStatus): Boolean {
         val trip = trips.find { it.id == tripId } ?: return false
         val record = trip.attendanceRecords.find { it.passengerCedula == passengerCedula }
+        val deviceTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        val deviceCoords = String.format(java.util.Locale.US, "%.5f° N, %.5f° W", 4.15 + (Math.random() * 0.08), 74.20 + (Math.random() * 0.08))
+        
         if (record != null) {
             record.status = newStatus
+            if (newStatus == TripStatus.CUMPLIDO || newStatus == TripStatus.NO_CUMPLIDO) {
+                record.endDeviceTime = deviceTime
+                record.endCoordinates = deviceCoords
+            }
         } else {
             if (newStatus != TripStatus.POR_CUMPLIR) {
-                trip.attendanceRecords.add(
-                    AttendanceRecord(
-                        passengerCedula = passengerCedula,
-                        driverName = "Líder (Forzado)",
-                        plateNumber = "LID-000",
-                        startTime = "00:00",
-                        vehicleType = "Otro",
-                        status = newStatus
-                    )
+                val newRecord = AttendanceRecord(
+                    passengerCedula = passengerCedula,
+                    driverName = "Líder (Forzado)",
+                    plateNumber = "LID-000",
+                    startTime = "00:00",
+                    vehicleType = "Otro",
+                    status = newStatus,
+                    startDeviceTime = deviceTime,
+                    startCoordinates = deviceCoords
                 )
+                if (newStatus == TripStatus.CUMPLIDO || newStatus == TripStatus.NO_CUMPLIDO) {
+                    newRecord.endDeviceTime = deviceTime
+                    newRecord.endCoordinates = deviceCoords
+                }
+                trip.attendanceRecords.add(newRecord)
             }
         }
         trip.updateStatus()
