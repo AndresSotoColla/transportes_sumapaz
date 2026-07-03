@@ -3,6 +3,8 @@ package com.example.transportes_sumapaz.ui
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,17 +53,17 @@ enum class Screen {
     USER_REGISTER_OCCASIONAL
 }
 
-// Colores del sistema de diseño
-val PrimaryBlue = Color(0xFF0F4C81)      // Azul clásico y premium
-val LightBlue = Color(0xFF3B82F6)        // Azul moderno
-val GradientStart = Color(0xFF1E3A8A)    // Azul oscuro profundo
-val GradientEnd = Color(0xFF3B82F6)      // Azul brillante
-val LightBackground = Color(0xFFF8FAFC)  // Fondo gris suave
+// Colores del sistema de diseño (Paleta Slate & Teal Premium)
+val PrimaryBlue = Color(0xFF0F766E)      // Teal Oscuro Corporativo (Teal 700)
+val LightBlue = Color(0xFF14B8A6)        // Teal Claro / Menta (Teal 500)
+val GradientStart = Color(0xFF0F172A)    // Slate Oscuro Profundo (Slate 900)
+val GradientEnd = Color(0xFF1E293B)      // Slate Corporativo (Slate 800)
+val LightBackground = Color(0xFFF1F5F9)  // Fondo Gris Azulado Suave (Slate 100)
 
-val StatusGreen = Color(0xFF2E7D32)      // Cumplido
-val StatusRed = Color(0xFFC62828)        // No cumplido
-val StatusYellow = Color(0xFFE65100)     // Iniciado (Ámbar / Naranja)
-val StatusScheduled = Color(0xFF64748B)  // Programado (Gris pizarra)
+val StatusGreen = Color(0xFF10B981)      // Emerald (Verde Moderno)
+val StatusRed = Color(0xFFEF4444)        // Rose Red (Rojo Moderno)
+val StatusYellow = Color(0xFFF59E0B)     // Amber (Amarillo/Naranja Moderno)
+val StatusScheduled = Color(0xFF94A3B8)  // Slate (Gris Programado)
 
 @Composable
 fun TransportesSumapazApp() {
@@ -317,19 +319,21 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Logotipo decorativo personalizado
             Box(
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .border(2.dp, Color.White.copy(alpha = 0.5f), CircleShape),
+                    .background(Color.White)
+                    .border(3.dp, Color.White.copy(alpha = 0.8f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Transporte Logo",
-                    tint = Color.White,
-                    modifier = Modifier.size(54.dp)
+                Image(
+                    painter = painterResource(id = com.example.transportes_sumapaz.R.drawable.app_logo),
+                    contentDescription = "Logo Transportes Sumapaz",
+                    modifier = Modifier
+                        .size(110.dp)
+                        .clip(CircleShape)
                 )
             }
 
