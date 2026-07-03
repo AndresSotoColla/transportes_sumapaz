@@ -95,7 +95,7 @@ object TransportesRepository {
 
     // Cuentas de Meta Líderes (Base de Datos Local para autenticación)
     private val leaders = mutableMapOf(
-        "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = false, level = 1),
+        "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = false, level = 2),
         "admin" to LeaderAccount("admin", "Admin Sumapaz", "admin123", mustChangePassword = false, level = 2)
     )
 

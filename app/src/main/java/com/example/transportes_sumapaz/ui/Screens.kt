@@ -3299,49 +3299,67 @@ fun ReportsDashboardScreen(
                 Text("Filtros de Búsqueda", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.Black)
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = startDate,
-                        onValueChange = { startDate = it },
-                        label = { Text("Fecha Inicio") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        colors = getTextFieldColors()
-                    )
-                    OutlinedTextField(
-                        value = endDate,
-                        onValueChange = { endDate = it },
-                        label = { Text("Fecha Fin") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        colors = getTextFieldColors()
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        DateSelector(
+                            label = "Fecha Inicio",
+                            selectedDate = startDate,
+                            onDateSelected = { startDate = it }
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        DateSelector(
+                            label = "Fecha Fin",
+                            selectedDate = endDate,
+                            onDateSelected = { endDate = it }
+                        )
+                    }
                 }
 
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
-                        onClick = { expandedRoute = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Ruta: $selectedRoute", style = MaterialTheme.typography.bodyMedium)
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1.3f)) {
+                        OutlinedButton(
+                            onClick = { expandedRoute = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Ruta: $selectedRoute", style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = expandedRoute,
+                            onDismissRequest = { expandedRoute = false }
+                        ) {
+                            listOf("Todas", "Sede Betania", "Sede San Juan").forEach { route ->
+                                DropdownMenuItem(
+                                    text = { Text(route) },
+                                    onClick = {
+                                        selectedRoute = route
+                                        expandedRoute = false
+                                    }
+                                )
+                            }
                         }
                     }
-                    DropdownMenu(
-                        expanded = expandedRoute,
-                        onDismissRequest = { expandedRoute = false }
+
+                    Button(
+                        onClick = {
+                            val todayStr = "2026-07-03"
+                            startDate = todayStr
+                            endDate = todayStr
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusYellow),
+                        modifier = Modifier.weight(0.7f).height(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        listOf("Todas", "Sede Betania", "Sede San Juan").forEach { route ->
-                            DropdownMenuItem(
-                                text = { Text(route) },
-                                onClick = {
-                                    selectedRoute = route
-                                    expandedRoute = false
-                                }
-                            )
-                        }
+                        Text("Hoy", color = Color.Black, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                     }
                 }
             }
@@ -3608,7 +3626,7 @@ fun generateReportPdf(context: android.content.Context, trips: List<Trip>) {
         pdfDocument.close()
         fos.close()
         
-        Toast.makeText(context, "PDF guardado en: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "Reporte descargado con éxito en Descargas", Toast.LENGTH_LONG).show()
     } catch (e: Exception) {
         e.printStackTrace()
         Toast.makeText(context, "Error al generar PDF: ${e.message}", Toast.LENGTH_SHORT).show()
