@@ -3025,6 +3025,54 @@ fun CalendarGrid(
                                     Color.Transparent
                                 }
 
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .padding(2.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(dayBgColor)
+                                        .border(
+                                            if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) PrimaryBlue else Color.LightGray.copy(alpha = 0.2f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { onDaySelected(day.dateString) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = day.dayNumber.toString(),
+                                            fontWeight = if (isSelected || tripsOnDay.isNotEmpty()) FontWeight.Bold else FontWeight.Normal,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (isSelected) PrimaryBlue else Color.Black
+                                        )
+
+                                        if (tripsOnDay.isNotEmpty()) {
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                tripsOnDay.take(3).forEach { trip ->
+                                                    val dotColor = when (trip.status) {
+                                                        TripStatus.CUMPLIDO -> StatusGreen
+                                                        TripStatus.NO_CUMPLIDO -> StatusRed
+                                                        TripStatus.INICIADO -> StatusYellow
+                                                        TripStatus.POR_CUMPLIR -> StatusScheduled
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(4.dp)
+                                                            .clip(CircleShape)
+                                                            .background(dotColor)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3451,13 +3499,13 @@ fun ReportsDashboardScreen(
                                     }
                                     if (record != null) {
                                         Text(
-                                            text = "  Vehículo: ${record.plateNumber} | Subida: ${record.startTime} | Bajada: ${record.endTime}",
+                                            text = "  Vehículo: ${record.plateNumber} | Subida: ${record.startTime} | Bajada: ${record.endDeviceTime}",
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                                             color = Color.Gray
                                         )
-                                        if (record.startGps.isNotEmpty() || record.endGps.isNotEmpty()) {
+                                        if (record.startCoordinates.isNotEmpty() || record.endCoordinates.isNotEmpty()) {
                                             Text(
-                                                text = "  GPS Subida: ${record.startGps} | GPS Bajada: ${record.endGps}",
+                                                text = "  GPS Subida: ${record.startCoordinates} | GPS Bajada: ${record.endCoordinates}",
                                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                                                 color = Color.Gray
                                             )
