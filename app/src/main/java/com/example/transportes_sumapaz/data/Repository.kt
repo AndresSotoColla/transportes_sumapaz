@@ -48,7 +48,8 @@ data class Trip(
     val route: String,                  // "Sede Betania" o "Sede San Juan"
     var status: TripStatus,             // CUMPLIDO, NO_CUMPLIDO, POR_CUMPLIR
     var passengers: List<Participant>,  // Pasajeros programados por el líder (var para permitir edición)
-    val attendanceRecords: MutableList<AttendanceRecord> = mutableStateListOf() // Asistencias confirmadas con datos de vehículo
+    val attendanceRecords: MutableList<AttendanceRecord> = mutableStateListOf(), // Asistencias confirmadas con datos de vehículo
+    val scheduledBy: String = "lider"   // Líder que agendó el viaje
 ) {
     fun updateStatus() {
         if (attendanceRecords.isEmpty()) {
@@ -81,7 +82,8 @@ data class LeaderAccount(
     val username: String,
     var name: String,
     var passwordHash: String,
-    var mustChangePassword: Boolean
+    var mustChangePassword: Boolean,
+    val level: Int = 1 // Nivel 1 (solo ve lo suyo) o Nivel 2 (ve todo)
 )
 
 /**
@@ -93,8 +95,8 @@ object TransportesRepository {
 
     // Cuentas de Meta Líderes (Base de Datos Local para autenticación)
     private val leaders = mutableMapOf(
-        "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = true),
-        "admin" to LeaderAccount("admin", "Admin Sumapaz", "admin123", mustChangePassword = true)
+        "lider" to LeaderAccount("lider", "Carlos Gómez", "123", mustChangePassword = false, level = 1),
+        "admin" to LeaderAccount("admin", "Admin Sumapaz", "admin123", mustChangePassword = false, level = 2)
     )
 
     // Almacenamiento local del celular para participantes
@@ -164,7 +166,8 @@ object TransportesRepository {
                 passengers = listOf(
                     globalParticipants[0], // Juan Pérez (1010)
                     globalParticipants[1]  // María Rodríguez (2020)
-                )
+                ),
+                scheduledBy = "lider"
             )
         )
 
@@ -177,7 +180,8 @@ object TransportesRepository {
             passengers = listOf(
                 globalParticipants[2], // Pedro Gómez (3030)
                 globalParticipants[3]  // Ana Vega (4040)
-            )
+            ),
+            scheduledBy = "admin"
         )
         tripSanJuan.attendanceRecords.add(
             AttendanceRecord("3030", "Andrés Conductor", "OPQ-789", "09:30", "Van")
@@ -190,7 +194,8 @@ object TransportesRepository {
             date = "2026-07-01",
             route = "Sede Betania",
             status = TripStatus.CUMPLIDO,
-            passengers = listOf(globalParticipants[0])
+            passengers = listOf(globalParticipants[0]),
+            scheduledBy = "lider"
         )
         tripPast.attendanceRecords.add(
             AttendanceRecord("1010", "Carlos Conductor", "XYZ-123", "07:30", "Bus", TripStatus.CUMPLIDO)
@@ -243,6 +248,16 @@ object TransportesRepository {
         }
     }
 
+    fun deleteParticipant(docNumber: String): Boolean {
+        // Elimina participante localmente del celular
+        val removed = globalParticipants.removeAll { it.docNumber == docNumber }
+        if (removed) {
+            saveParticipantsToPrefs()
+            println("BD Local Celular: Eliminado participante $docNumber de SharedPreferences.")
+        }
+        return removed
+    }
+
     // --- Gestión de Viajes (Conectado / Preparado para Base de Datos Remota) ---
     fun getTrips(): List<Trip> {
         /*
@@ -253,18 +268,19 @@ object TransportesRepository {
         return trips
     }
 
-    fun addTrip(route: String, date: String, passengers: List<Participant>): Boolean {
+    fun addTrip(route: String, date: String, passengers: List<Participant>, scheduledBy: String): Boolean {
         /*
          * INSERCIÓN EN BASE DE DATOS REMOTA:
          * POST /trips
          */
-        println("BD Remota: Registrando nuevo viaje programado para $route el $date en base de datos...")
+        println("BD Remota: Registrando nuevo viaje programado para $route el $date por el líder $scheduledBy en base de datos...")
         val newTrip = Trip(
             id = java.util.UUID.randomUUID().toString(),
             date = date,
             route = route,
             status = TripStatus.POR_CUMPLIR,
-            passengers = passengers
+            passengers = passengers,
+            scheduledBy = scheduledBy
         )
         trips.add(newTrip)
         return true
