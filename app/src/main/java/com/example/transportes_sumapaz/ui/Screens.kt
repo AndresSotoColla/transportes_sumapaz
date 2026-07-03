@@ -3220,13 +3220,16 @@ fun ReportsDashboardScreen(
     var selectedRoute by remember { mutableStateOf("Todas") }
     var expandedRoute by remember { mutableStateOf(false) }
 
+    var selectedCreator by remember { mutableStateOf("Todos") }
+    var expandedCreator by remember { mutableStateOf(false) }
+
     val allTrips = remember { derivedStateOf { TransportesRepository.getTrips() } }
-    val filteredTrips = remember(startDate, endDate, selectedRoute, leader, allTrips.value) {
+    val filteredTrips = remember(startDate, endDate, selectedRoute, selectedCreator, leader, allTrips.value) {
         allTrips.value.filter { trip ->
             val matchesLeader = if (leader?.level == 1) {
                 trip.scheduledBy == leader.username
             } else {
-                true
+                selectedCreator == "Todos" || trip.scheduledBy == selectedCreator
             }
             val matchesDate = trip.date >= startDate && trip.date <= endDate
             val matchesRoute = selectedRoute == "Todas" || trip.route == selectedRoute
@@ -3270,7 +3273,7 @@ fun ReportsDashboardScreen(
                 Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = PrimaryBlue)
             }
             Text(
-                text = "Reportes (${if (leader?.level == 2) "Nivel 2" else "Nivel 1"})",
+                text = "Reportes",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = Color.Black
             )
@@ -3298,21 +3301,21 @@ fun ReportsDashboardScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Filtros de Búsqueda", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color.Black)
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        DateSelector(
-                            label = "Fecha Inicio",
-                            selectedDate = startDate,
-                            onDateSelected = { startDate = it }
-                        )
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        DateSelector(
-                            label = "Fecha Fin",
-                            selectedDate = endDate,
-                            onDateSelected = { endDate = it }
-                        )
-                    }
+                // Filtros de fecha apilados verticalmente
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DateSelector(
+                        label = "Fecha Inicio",
+                        selectedDate = startDate,
+                        onDateSelected = { startDate = it }
+                    )
+                    DateSelector(
+                        label = "Fecha Fin",
+                        selectedDate = endDate,
+                        onDateSelected = { endDate = it }
+                    )
                 }
 
                 Row(
@@ -3360,6 +3363,47 @@ fun ReportsDashboardScreen(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         Text("Hoy", color = Color.Black, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                    }
+                }
+
+                // Filtro "Agendado por" en el caso de Nivel 2
+                if (leader?.level == 2) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { expandedCreator = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                val displaySelectedCreatorText = when (selectedCreator) {
+                                    "lider" -> "lider (Carlos Gómez)"
+                                    "admin" -> "admin (Admin Sumapaz)"
+                                    else -> "Todos"
+                                }
+                                Text("Agendado por: $displaySelectedCreatorText", style = MaterialTheme.typography.bodyMedium)
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = expandedCreator,
+                            onDismissRequest = { expandedCreator = false }
+                        ) {
+                            listOf("Todos", "lider", "admin").forEach { creator ->
+                                val displayText = when (creator) {
+                                    "lider" -> "lider (Carlos Gómez)"
+                                    "admin" -> "admin (Admin Sumapaz)"
+                                    else -> "Todos"
+                                }
+                                DropdownMenuItem(
+                                    text = { Text(displayText) },
+                                    onClick = {
+                                        selectedCreator = creator
+                                        expandedCreator = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
