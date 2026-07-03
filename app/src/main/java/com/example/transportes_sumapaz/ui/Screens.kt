@@ -3598,7 +3598,11 @@ fun generateReportPdf(context: android.content.Context, trips: List<Trip>) {
         
         pdfDocument.finishPage(page)
         
-        val file = java.io.File(context.getExternalFilesDir(null), "Reporte_Transportes_Sumapaz.pdf")
+        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        if (!downloadsDir.exists()) {
+            downloadsDir.mkdirs()
+        }
+        val file = java.io.File(downloadsDir, "Reporte_Transportes_Sumapaz.pdf")
         val fos = java.io.FileOutputStream(file)
         pdfDocument.writeTo(fos)
         pdfDocument.close()
