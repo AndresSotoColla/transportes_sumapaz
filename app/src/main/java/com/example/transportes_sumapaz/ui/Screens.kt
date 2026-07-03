@@ -53,7 +53,8 @@ enum class Screen {
     USER_TRIP_DETAILS,
     USER_REGISTER_OCCASIONAL,
     REPORTS_LOGIN,
-    REPORTS_DASHBOARD
+    REPORTS_DASHBOARD,
+    VIAJES_API
 }
 
 // Colores del sistema de diseño (Paleta Slate & Teal Premium)
@@ -127,7 +128,8 @@ fun TransportesSumapazApp() {
                 Screen.WELCOME -> WelcomeScreen(
                     onLeaderClick = { currentScreen = Screen.LEADER_LOGIN },
                     onUserClick = { currentScreen = Screen.USER_DASHBOARD },
-                    onReportsClick = { currentScreen = Screen.REPORTS_LOGIN }
+                    onReportsClick = { currentScreen = Screen.REPORTS_LOGIN },
+                    onViajesApiClick = { currentScreen = Screen.VIAJES_API }
                 )
                 Screen.LEADER_LOGIN -> LeaderLoginScreen(
                     onBack = { currentScreen = Screen.WELCOME },
@@ -196,6 +198,14 @@ fun TransportesSumapazApp() {
                 Screen.USER_REGISTER_OCCASIONAL -> UserRegisterOccasionalTripScreen(
                     onBack = { currentScreen = Screen.USER_DASHBOARD }
                 )
+                Screen.VIAJES_API -> {
+                    Column {
+                        IconButton(onClick = { currentScreen = Screen.WELCOME }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        }
+                        com.example.transportes_sumapaz.ui.viajes.ViajesScreen()
+                    }
+                }
             }
         }
     }
@@ -330,7 +340,8 @@ fun TimeSelector(
 fun WelcomeScreen(
     onLeaderClick: () -> Unit,
     onUserClick: () -> Unit,
-    onReportsClick: () -> Unit
+    onReportsClick: () -> Unit,
+    onViajesApiClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -514,7 +525,58 @@ fun WelcomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Botón Viajes API (Nuevo Desarrollo)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .clickable { onViajesApiClick() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = PrimaryBlue),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = "API Icon",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Ver Viajes (Red/API)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            )
+                            Text(
+                                text = "Consulta los datos reales del servidor",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = "Go",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
             
             Text(
                 text = "Desarrollado para la comunidad de Sumapaz",

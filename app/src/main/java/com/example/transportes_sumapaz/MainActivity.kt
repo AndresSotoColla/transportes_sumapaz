@@ -8,6 +8,9 @@ import com.example.transportes_sumapaz.data.TransportesRepository
 import com.example.transportes_sumapaz.ui.TransportesSumapazApp
 import com.example.transportes_sumapaz.ui.theme.Transportes_sumapazTheme
 
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
