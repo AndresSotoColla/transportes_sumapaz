@@ -264,6 +264,16 @@ object TransportesRepository {
         */
     }
 
+    suspend fun createMetaLeaderRemote(username: String, name: String, passwordPlain: String, level: Int): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val response = api.crearLider(com.example.transportes_sumapaz.data.remote.model.CrearLiderRequest(username, name, passwordPlain, level))
+            return@withContext response.isSuccessful && (response.body()?.success == true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext false
+        }
+    }
+
     // --- Autenticación Meta Líder (Mock Anterior) ---
     fun loginLeader(username: String, passwordPlain: String): LoginResult {
         val account = leaders[username] ?: return LoginResult.USER_NOT_FOUND

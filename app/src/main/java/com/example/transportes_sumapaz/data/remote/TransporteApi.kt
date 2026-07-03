@@ -2,6 +2,8 @@ package com.example.transportes_sumapaz.data.remote
 
 import com.example.transportes_sumapaz.data.remote.model.BaseResponse
 import com.example.transportes_sumapaz.data.remote.model.CerrarViajeRequest
+import com.example.transportes_sumapaz.data.remote.model.CrearLiderRequest
+import com.example.transportes_sumapaz.data.remote.model.CrearLiderResponse
 import com.example.transportes_sumapaz.data.remote.model.IniciarViajeRequest
 import com.example.transportes_sumapaz.data.remote.model.LoginRequest
 import com.example.transportes_sumapaz.data.remote.model.LoginResponse
@@ -19,6 +21,9 @@ interface TransporteApi {
 
     @POST("api/transporte_router.php?route=/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    @POST("api/transporte_router.php?route=/lideres/crear")
+    suspend fun crearLider(@Body request: CrearLiderRequest): Response<CrearLiderResponse>
 
     @GET("api/transporte_router.php?route=/viajes")
     suspend fun getViajes(): Response<ViajesResponse>
