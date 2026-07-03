@@ -27,10 +27,10 @@ data class Participant(
  */
 data class AttendanceRecord(
     val passengerCedula: String,
-    val driverName: String,
-    val plateNumber: String,
-    val startTime: String,
-    val vehicleType: String,
+    var driverName: String,
+    var plateNumber: String,
+    var startTime: String,
+    var vehicleType: String,
     var status: TripStatus = TripStatus.INICIADO,
     // Telemetría de celular
     var startDeviceTime: String = "",
@@ -282,13 +282,17 @@ object TransportesRepository {
     }
 
     /**
-     * Cierra el viaje para un pasajero, aplicando su re-confirmación y telemetría de cierre.
+     * Cierra el viaje para un pasajero, aplicando su re-confirmación, telemetría y actualización de vehículo.
      */
     fun closeTripForUser(
         tripId: String,
         passengerCedula: String,
         status: TripStatus,
-        confirmedPassengers: List<String>
+        confirmedPassengers: List<String>,
+        driverName: String,
+        plateNumber: String,
+        vehicleType: String,
+        startTime: String
     ): Boolean {
         val trip = trips.find { it.id == tripId } ?: return false
         val userRecord = trip.attendanceRecords.find { it.passengerCedula == passengerCedula } ?: return false
@@ -299,6 +303,11 @@ object TransportesRepository {
         
         trip.attendanceRecords.forEach { record ->
             if (record.plateNumber == userPlate) {
+                record.driverName = driverName
+                record.plateNumber = plateNumber
+                record.vehicleType = vehicleType
+                record.startTime = startTime
+                
                 if (confirmedPassengers.contains(record.passengerCedula)) {
                     record.status = status
                 } else {
