@@ -1,4 +1,4 @@
-﻿package com.example.transportes_sumapaz.ui
+package com.example.transportes_sumapaz.ui
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -140,7 +140,7 @@ fun TransportesSumapazApp() {
                 )
                 Screen.LEADER_CHANGE_PASSWORD -> LeaderChangePasswordScreen(
                     onPasswordChanged = {
-                        Toast.makeText(context, "ContraseÃ±a cambiada con Ã©xito", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Contraseña cambiada con Ã©xito", Toast.LENGTH_LONG).show()
                         currentScreen = Screen.LEADER_DASHBOARD
                     },
                     onBack = {
@@ -372,7 +372,7 @@ fun WelcomeScreen(
 
             Spacer(modifier = Modifier.height(56.dp))
 
-            // BotÃ³n Meta LÃ­der (Claro, Texto Negro)
+            // BotÃ³n Meta Líder (Claro, Texto Negro)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -400,7 +400,7 @@ fun WelcomeScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(
-                                text = "Ingreso Meta LÃ­der",
+                                text = "Ingreso Meta Líder",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black
@@ -591,16 +591,21 @@ fun WelcomeScreen(
 }
 
 /**
- * Pantalla de Login de Meta LÃ­der
+ * Pantalla de Login de Meta Líder
  */
 @Composable
 fun LeaderLoginScreen(
     onBack: () -> Unit,
     onLoginSuccess: (LoginResult) -> Unit
 ) {
-    var username by remember { mutableStateOf("lider") }
-    var password by remember { mutableStateOf("123") }
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("login_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    var username by remember { mutableStateOf(sharedPrefs.getString("saved_username", "") ?: "") }
+    var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(sharedPrefs.getBoolean("remember_me", false)) }
 
     Column(
         modifier = Modifier
@@ -621,7 +626,7 @@ fun LeaderLoginScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Acceso Meta LÃ­der",
+            text = "Acceso Meta Líder",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = PrimaryBlue
@@ -656,15 +661,34 @@ fun LeaderLoginScreen(
                 password = it
                 errorMessage = null
             },
-            label = { Text("ContraseÃ±a") },
+            label = { Text("Contraseña") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    Icon(icon, contentDescription = "Alternar visibilidad")
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
-            colors = getTextFieldColors()
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation()
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = rememberMe,
+                onCheckedChange = { rememberMe = it }
+            )
+            Text("Recordar usuario", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         errorMessage?.let {
             Spacer(modifier = Modifier.height(16.dp))
@@ -692,12 +716,17 @@ fun LeaderLoginScreen(
                 isLoading = true
                 errorMessage = null
                 coroutineScope.launch {
+                    if (rememberMe) {
+                        sharedPrefs.edit().putString("saved_username", username).putBoolean("remember_me", true).apply()
+                    } else {
+                        sharedPrefs.edit().remove("saved_username").putBoolean("remember_me", false).apply()
+                    }
                     val result = TransportesRepository.loginLeaderRemote(username, password)
                     isLoading = false
                     if (result == LoginResult.USER_NOT_FOUND) {
                         errorMessage = "Usuario no registrado"
                     } else if (result == LoginResult.WRONG_PASSWORD) {
-                        errorMessage = "ContraseÃ±a incorrecta"
+                        errorMessage = "Contraseña incorrecta"
                     } else {
                         onLoginSuccess(result)
                     }
@@ -718,7 +747,7 @@ fun LeaderLoginScreen(
 }
 
 /**
- * Pantalla para Cambio de ContraseÃ±a Obligatorio
+ * Pantalla para Cambio de Contraseña Obligatorio
  */
 @Composable
 fun LeaderChangePasswordScreen(
@@ -750,7 +779,7 @@ fun LeaderChangePasswordScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Actualizar ContraseÃ±a",
+            text = "Actualizar Contraseña",
             style = MaterialTheme.typography.headlineMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = PrimaryBlue
@@ -772,7 +801,7 @@ fun LeaderChangePasswordScreen(
                 Icon(Icons.Default.Info, contentDescription = null, tint = StatusYellow)
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "LÃ­der: ${leader?.name ?: "Administrador"}\nUsuario: ${leader?.username}",
+                    text = "Líder: ${leader?.name ?: "Administrador"}\nUsuario: ${leader?.username}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                     color = Color.Black
                 )
@@ -787,7 +816,7 @@ fun LeaderChangePasswordScreen(
                 newPassword = it
                 errorMessage = null
             },
-            label = { Text("Nueva ContraseÃ±a") },
+            label = { Text("Nueva Contraseña") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
@@ -804,7 +833,7 @@ fun LeaderChangePasswordScreen(
                 confirmPassword = it
                 errorMessage = null
             },
-            label = { Text("Confirmar ContraseÃ±a") },
+            label = { Text("Confirmar Contraseña") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
@@ -865,7 +894,7 @@ fun LeaderChangePasswordScreen(
 }
 
 /**
- * Dashboard de Meta LÃ­der - Tarjetas Claras y Textos en Negro
+ * Dashboard de Meta Líder - Tarjetas Claras y Textos en Negro
  */
 @Composable
 fun LeaderDashboardScreen(
@@ -891,14 +920,14 @@ fun LeaderDashboardScreen(
         ) {
             Column {
                 Text(
-                    text = "Panel Meta LÃ­der",
+                    text = "Panel Meta Líder",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = PrimaryBlue
                     )
                 )
                 Text(
-                    text = "Hola! ${leader?.name ?: "Meta LÃ­der"}",
+                    text = "Hola! ${leader?.name ?: "Meta Líder"}",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
@@ -987,7 +1016,7 @@ fun LeaderDashboardScreen(
             }
         }
 
-        // Tarjeta Cambiar ContraseÃ±a (Clara)
+        // Tarjeta Cambiar Contraseña (Clara)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1022,7 +1051,7 @@ fun LeaderDashboardScreen(
             }
         }
 
-        // Tarjeta Crear Meta LÃ­der (Solo Nivel 2)
+        // Tarjeta Crear Meta Líder (Solo Nivel 2)
         if (leader?.level == 2) {
             Card(
                 modifier = Modifier
@@ -1047,7 +1076,7 @@ fun LeaderDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Crear Meta LÃ­der",
+                        text = "Crear Meta Líder",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = Color.Black
                     )
@@ -1062,7 +1091,7 @@ fun LeaderDashboardScreen(
 }
 
 /**
- * Pantalla de Registro de Viajes (Meta LÃ­der)
+ * Pantalla de Registro de Viajes (Meta Líder)
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -1500,7 +1529,7 @@ fun LeaderRegisterTripScreen(
 }
 
 /**
- * Pantalla Viajes Agendados - Calendario y Manifiesto JerÃ¡rquico Desplegable (Meta LÃ­der)
+ * Pantalla Viajes Agendados - Calendario y Manifiesto JerÃ¡rquico Desplegable (Meta Líder)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2128,7 +2157,7 @@ fun UserDashboardScreen(
                             }
                             val participant = TransportesRepository.getParticipantByCedula(docNumberInput.trim())
                             if (participant == null) {
-                                errorMessage = "Documento no registrado en la base de datos de participantes. Consulte con el Meta LÃ­der."
+                                errorMessage = "Documento no registrado en la base de datos de participantes. Consulte con el Meta Líder."
                             } else {
                                 onLoggedIn(participant.docNumber)
                             }
@@ -3200,16 +3229,21 @@ fun CalendarGrid(
 }
 
 /**
- * Pantalla de Login de Reportes - Reutiliza el repositorio de Meta LÃ­der
+ * Pantalla de Login de Reportes - Reutiliza el repositorio de Meta Líder
  */
 @Composable
 fun ReportsLoginScreen(
     onBack: () -> Unit,
     onLoginSuccess: () -> Unit
 ) {
-    var username by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("login_prefs", android.content.Context.MODE_PRIVATE) }
+    
+    var username by remember { mutableStateOf(sharedPrefs.getString("saved_username", "") ?: "") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var rememberMe by remember { mutableStateOf(sharedPrefs.getBoolean("remember_me", false)) }
 
     Column(
         modifier = Modifier
@@ -3239,7 +3273,7 @@ fun ReportsLoginScreen(
             )
         )
         Text(
-            text = "Ingrese sus credenciales de Meta LÃ­der",
+            text = "Ingrese sus credenciales de Meta Líder",
             style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
         )
 
@@ -3267,15 +3301,34 @@ fun ReportsLoginScreen(
                 password = it
                 errorMessage = null
             },
-            label = { Text("ContraseÃ±a") },
+            label = { Text("Contraseña") },
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    val icon = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    Icon(icon, contentDescription = "Alternar visibilidad")
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             singleLine = true,
+            visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             colors = getTextFieldColors()
         )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = rememberMe,
+                onCheckedChange = { rememberMe = it }
+            )
+            Text("Recordar usuario", style = MaterialTheme.typography.bodyMedium)
+        }
 
         errorMessage?.let {
             Spacer(modifier = Modifier.height(16.dp))
@@ -3301,7 +3354,7 @@ fun ReportsLoginScreen(
                 if (result == LoginResult.USER_NOT_FOUND) {
                     errorMessage = "Usuario no registrado"
                 } else if (result == LoginResult.WRONG_PASSWORD) {
-                    errorMessage = "ContraseÃ±a incorrecta"
+                    errorMessage = "Contraseña incorrecta"
                 } else {
                     onLoginSuccess()
                 }
@@ -3402,7 +3455,7 @@ fun ReportsDashboardScreen(
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
         )
         Text(
-            text = "LÃ­der: ${leader?.name ?: "Meta LÃ­der"} (${leader?.username})",
+            text = "Líder: ${leader?.name ?: "Meta Líder"} (${leader?.username})",
             style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
         )
 
@@ -3716,7 +3769,7 @@ fun ReportsDashboardScreen(
 }
 
 /**
- * Pantalla para Crear Meta LÃ­der (Solo accesible para Nivel 2)
+ * Pantalla para Crear Meta Líder (Solo accesible para Nivel 2)
  */
 @Composable
 fun CreateMetaLeaderScreen(onBack: () -> Unit) {
@@ -3737,7 +3790,7 @@ fun CreateMetaLeaderScreen(onBack: () -> Unit) {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Crear Meta LÃ­der",
+            text = "Crear Meta Líder",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = PrimaryBlue
         )
@@ -3773,7 +3826,7 @@ fun CreateMetaLeaderScreen(onBack: () -> Unit) {
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; errorMessage = null },
-            label = { Text("ContraseÃ±a Inicial") },
+            label = { Text("Contraseña Inicial") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = getTextFieldColors(),
@@ -3819,7 +3872,7 @@ fun CreateMetaLeaderScreen(onBack: () -> Unit) {
                     val success = TransportesRepository.createMetaLeaderRemote(username.trim(), name.trim(), password.trim(), level)
                     isLoading = false
                     if (success) {
-                    Toast.makeText(context, "Meta LÃ­der creado con Ã©xito", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Meta Líder creado con Ã©xito", Toast.LENGTH_LONG).show()
                     onBack()
                     } else {
                         errorMessage = "Error en la API o el usuario ya existe"
