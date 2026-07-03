@@ -48,6 +48,7 @@ enum class Screen {
     LEADER_DASHBOARD,
     LEADER_REGISTER_TRIP,
     LEADER_CALENDAR,
+    LEADER_CREATE_LEADER,
     USER_DASHBOARD,
     USER_TRIP_DETAILS,
     USER_REGISTER_OCCASIONAL,
@@ -108,6 +109,7 @@ fun TransportesSumapazApp() {
             }
             Screen.LEADER_REGISTER_TRIP -> { currentScreen = Screen.LEADER_DASHBOARD }
             Screen.LEADER_CALENDAR -> { currentScreen = Screen.LEADER_DASHBOARD }
+            Screen.LEADER_CREATE_LEADER -> { currentScreen = Screen.LEADER_DASHBOARD }
             Screen.USER_DASHBOARD -> { currentScreen = Screen.WELCOME }
             Screen.USER_TRIP_DETAILS -> { currentScreen = Screen.USER_DASHBOARD }
             Screen.USER_REGISTER_OCCASIONAL -> { currentScreen = Screen.USER_DASHBOARD }
@@ -146,6 +148,7 @@ fun TransportesSumapazApp() {
                     onRegisterTrip = { currentScreen = Screen.LEADER_REGISTER_TRIP },
                     onViewCalendar = { currentScreen = Screen.LEADER_CALENDAR },
                     onChangePassword = { currentScreen = Screen.LEADER_CHANGE_PASSWORD },
+                    onCreateMetaLeader = { currentScreen = Screen.LEADER_CREATE_LEADER },
                     onLogout = {
                         TransportesRepository.logout()
                         currentScreen = Screen.WELCOME
@@ -155,6 +158,9 @@ fun TransportesSumapazApp() {
                     onBack = { currentScreen = Screen.LEADER_DASHBOARD }
                 )
                 Screen.LEADER_CALENDAR -> LeaderCalendarScreen(
+                    onBack = { currentScreen = Screen.LEADER_DASHBOARD }
+                )
+                Screen.LEADER_CREATE_LEADER -> CreateMetaLeaderScreen(
                     onBack = { currentScreen = Screen.LEADER_DASHBOARD }
                 )
                 Screen.REPORTS_LOGIN -> ReportsLoginScreen(
@@ -795,6 +801,7 @@ fun LeaderDashboardScreen(
     onRegisterTrip: () -> Unit,
     onViewCalendar: () -> Unit,
     onChangePassword: () -> Unit,
+    onCreateMetaLeader: () -> Unit,
     onLogout: () -> Unit
 ) {
     val leader = TransportesRepository.loggedLeader.value
@@ -913,7 +920,8 @@ fun LeaderDashboardScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onChangePassword() },
+                .clickable { onChangePassword() }
+                .padding(bottom = 16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
@@ -940,6 +948,43 @@ fun LeaderDashboardScreen(
                     text = "Actualice las credenciales de seguridad de su cuenta.",
                     style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
                 )
+            }
+        }
+
+        // Tarjeta Crear Meta Líder (Solo Nivel 2)
+        if (leader?.level == 2) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onCreateMetaLeader() }
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = PrimaryBlue,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Crear Meta Líder",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.Black
+                    )
+                    Text(
+                        text = "Cree nuevas cuentas administrativas para otros líderes.",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+                    )
+                }
             }
         }
     }
@@ -3595,6 +3640,119 @@ fun ReportsDashboardScreen(
             Icon(Icons.Default.Download, contentDescription = null, tint = Color.White)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Descargar PDF de Reportes", color = Color.White, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+        }
+    }
+}
+
+/**
+ * Pantalla para Crear Meta Líder (Solo accesible para Nivel 2)
+ */
+@Composable
+fun CreateMetaLeaderScreen(onBack: () -> Unit) {
+    var username by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var level by remember { mutableStateOf(1) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.padding(top = 8.dp)) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = PrimaryBlue)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Crear Meta Líder",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = PrimaryBlue
+        )
+        Text(
+            text = "Agregue un nuevo usuario administrativo al sistema.",
+            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it; errorMessage = null },
+            label = { Text("Nombre Completo") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = getTextFieldColors(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it; errorMessage = null },
+            label = { Text("Nombre de Usuario (Login)") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = getTextFieldColors(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; errorMessage = null },
+            label = { Text("Contraseña Inicial") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = getTextFieldColors(),
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(
+                selected = level == 1,
+                onClick = { level = 1 },
+                colors = RadioButtonDefaults.colors(selectedColor = PrimaryBlue)
+            )
+            Text("Nivel 1 (Básico)", color = Color.Black)
+            Spacer(modifier = Modifier.width(16.dp))
+            RadioButton(
+                selected = level == 2,
+                onClick = { level = 2 },
+                colors = RadioButtonDefaults.colors(selectedColor = PrimaryBlue)
+            )
+            Text("Nivel 2 (Administrador)", color = Color.Black)
+        }
+        
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = it, color = StatusRed, style = MaterialTheme.typography.bodySmall)
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Button(
+            onClick = {
+                if (username.isBlank() || name.isBlank() || password.isBlank()) {
+                    errorMessage = "Todos los campos son obligatorios"
+                    return@Button
+                }
+                val success = TransportesRepository.createMetaLeader(username.trim(), name.trim(), password.trim(), level)
+                if (success) {
+                    Toast.makeText(context, "Meta Líder creado con éxito", Toast.LENGTH_LONG).show()
+                    onBack()
+                } else {
+                    errorMessage = "El nombre de usuario ya existe"
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Crear Cuenta", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
         }
     }
 }

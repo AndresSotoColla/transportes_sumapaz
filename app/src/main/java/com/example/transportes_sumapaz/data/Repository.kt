@@ -224,6 +224,12 @@ object TransportesRepository {
         return true
     }
 
+    fun createMetaLeader(username: String, name: String, passwordPlain: String, level: Int): Boolean {
+        if (leaders.containsKey(username)) return false
+        leaders[username] = LeaderAccount(username, name, passwordPlain, mustChangePassword = false, level = level)
+        return true
+    }
+
     fun logout() {
         loggedLeader.value = null
     }
