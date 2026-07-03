@@ -1834,7 +1834,7 @@ fun UserTripDetailsScreen(
                                             tripId = refreshedTrip.id,
                                             passengerCedula = passenger.docNumber,
                                             driverName = driverName.trim(),
-                                            plateNumber = plateNumber.trim().toUpperCase(),
+                                            plateNumber = plateNumber.trim().uppercase(),
                                             startTime = startTime.trim(),
                                             vehicleType = vehicleType.trim()
                                         )
@@ -2053,6 +2053,12 @@ fun UserRegisterOccasionalTripScreen(
         }
     }
 }
+
+data class CalendarDay(
+    val dayNumber: Int,
+    val isCurrentMonth: Boolean,
+    val dateString: String
+)
 
 /**
  * Componente Cuadrícula de Calendario

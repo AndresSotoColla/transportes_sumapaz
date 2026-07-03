@@ -296,3 +296,11 @@ object TransportesRepository {
         return true
     }
 }
+
+enum class LoginResult {
+    SUCCESS,
+    MUST_CHANGE_PASSWORD,
+    USER_NOT_FOUND,
+    WRONG_PASSWORD
+}
+
