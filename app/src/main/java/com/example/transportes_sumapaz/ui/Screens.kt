@@ -318,25 +318,7 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logotipo decorativo personalizado (Borde Teal)
-            Box(
-                modifier = Modifier
-                    .size(125.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .border(3.dp, PrimaryBlue, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = com.example.transportes_sumapaz.R.drawable.app_logo),
-                    contentDescription = "Logo Transportes Sumapaz",
-                    modifier = Modifier
-                        .size(115.dp)
-                        .clip(CircleShape)
-                )
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = "Transportes Sumapaz",
