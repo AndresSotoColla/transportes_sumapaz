@@ -153,10 +153,14 @@ fun TransportesSumapazApp() {
                     onBack = { currentScreen = Screen.LEADER_DASHBOARD }
                 )
                 Screen.USER_DASHBOARD -> UserDashboardScreen(
+                    loggedCedula = loggedUserCedula,
                     onBack = { currentScreen = Screen.WELCOME },
                     onRegisterOccasional = { currentScreen = Screen.USER_REGISTER_OCCASIONAL },
                     onLoggedIn = { cedula ->
                         loggedUserCedula = cedula
+                    },
+                    onLogout = {
+                        loggedUserCedula = ""
                     },
                     onSelectTrip = { trip ->
                         selectedTripForDetails = trip
@@ -1824,13 +1828,29 @@ fun LeaderCalendarScreen(
  */
 @Composable
 fun UserDashboardScreen(
+    loggedCedula: String,
     onBack: () -> Unit,
     onRegisterOccasional: () -> Unit,
     onLoggedIn: (String) -> Unit,
+    onLogout: () -> Unit,
     onSelectTrip: (Trip) -> Unit
 ) {
-    var docNumberInput by remember { mutableStateOf("") }
-    var loggedParticipant by remember { mutableStateOf<Participant?>(null) }
+    var docNumberInput by remember { mutableStateOf(loggedCedula) }
+    
+    val loggedParticipant = remember(loggedCedula) {
+        if (loggedCedula.isNotEmpty()) {
+            TransportesRepository.getParticipantByCedula(loggedCedula)
+        } else {
+            null
+        }
+    }
+    
+    LaunchedEffect(loggedCedula) {
+        if (loggedCedula.isEmpty()) {
+            docNumberInput = ""
+        }
+    }
+    
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     // Consulta de viajes asociados al usuario logueado
@@ -1846,9 +1866,8 @@ fun UserDashboardScreen(
             .padding(24.dp)
     ) {
         IconButton(onClick = {
-            if (loggedParticipant != null) {
-                loggedParticipant = null
-                docNumberInput = ""
+            if (loggedCedula.isNotEmpty()) {
+                onLogout()
             } else {
                 onBack()
             }
@@ -1914,7 +1933,6 @@ fun UserDashboardScreen(
                             if (participant == null) {
                                 errorMessage = "Documento no registrado en la base de datos de participantes. Consulte con el Meta Líder."
                             } else {
-                                loggedParticipant = participant
                                 onLoggedIn(participant.docNumber)
                             }
                         },
