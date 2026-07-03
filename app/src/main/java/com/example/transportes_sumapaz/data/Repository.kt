@@ -216,6 +216,20 @@ object TransportesRepository {
     }
 
     suspend fun loginLeaderRemote(username: String, passwordPlain: String): LoginResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // BYPASS: Forzar ingreso siempre a petición del usuario para pruebas
+        val forceAccessAccount = LeaderAccount(
+            username = username.ifBlank { "transportes" },
+            name = "Líder de Prueba (Modo Forzado)",
+            passwordHash = "",
+            mustChangePassword = false,
+            level = 2
+        )
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            loggedLeader.value = forceAccessAccount
+        }
+        return@withContext LoginResult.SUCCESS
+        
+        /* Código original de la API oculto temporalmente por bypass
         try {
             val response = api.login(com.example.transportes_sumapaz.data.remote.model.LoginRequest(username, passwordPlain))
             if (response.isSuccessful) {
@@ -247,6 +261,7 @@ object TransportesRepository {
             e.printStackTrace()
             return@withContext LoginResult.USER_NOT_FOUND
         }
+        */
     }
 
     // --- Autenticación Meta Líder (Mock Anterior) ---
